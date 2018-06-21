@@ -241,7 +241,7 @@ pair< string, vector<int> >  reconstructRefWithPosHTS(const bam1_t   * b){
 	}
     }
 
-    if(reconstructed.size() != b->core.l_qseq){
+    if(int(reconstructed.size()) != b->core.l_qseq){
 	cerr << "Could not recreate the sequence for read "<<bam_get_qname(b)  << endl;
 	exit(1);
     }
