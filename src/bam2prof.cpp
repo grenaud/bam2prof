@@ -29,6 +29,7 @@ extern "C" {
 
 #include "samtools.h"
 #include "sam_opts.h"
+#include "bedidx.h"
 
 }
 #include "ReconsReferenceHTSLIB.h"
@@ -51,7 +52,7 @@ string alphabetHTSLIB = "NACNGNNNTNNNNNNN";
 #define MAXLENGTH 1000
 
 
-#define MAX(a,b) (((a)>(b))?(a):(b))
+#define MAX2(a,b) (((a)>(b))?(a):(b))
 
 
 
@@ -205,7 +206,7 @@ vector< vector<unsigned int> > typesOfDimer3pSingle; //3' deam rates when the 5'
 
 
 //increases the counters mismatches and typesOfMismatches of a given BamAlignment object
-inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta){ // ,int firstCycleRead,int increment
+inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta, const bam_hdr_t *h,void *bed){ // ,int firstCycleRead,int increment
 
     char refeBase;
     char readBase;
@@ -226,6 +227,9 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 
     
     i=0; //5p for forward str, 3p for reverse
+    cerr<<"bed1 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+    if(bed && !bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[i], reconstructedReferencePos[i] + 1) == 0) 	goto eval3pdeam;
+    cerr<<"bed2 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
     refeBase=toupper(reconstructedReference[i]);
     
     //readBase=toupper(         al.QueryBases[i]);
@@ -281,6 +285,10 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
  eval3pdeam:
     //i=int(al.QueryBases.size())-1; //3p for forward str, 5p for reverse
     i=b->core.l_qseq-1;
+    cerr<<"bed3 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+    if(bed && !bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[i], reconstructedReferencePos[i] + 1) == 0) 	goto iterateLoop;
+    cerr<<"bed4 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+    
     refeBase=toupper(reconstructedReference[i]);
     // readBase=toupper(         al.QueryBases[i]);
     // qualBase=int(              al.Qualities[i])-offset;
@@ -344,6 +352,10 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
     //for(i=0;i<int(al.QueryBases.size());i++,j++){
     for(i=0;i<int(b->core.l_qseq);i++,j++){
 	// cout<<i<<endl;
+	cerr<<"bed5 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+	if(bed && !bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[j], reconstructedReferencePos[j] + 1) == 0) 	continue;
+	cerr<<"bed6 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+
 	refeBase=toupper(reconstructedReference[j]);
 
 	// readBase=toupper(          al.QueryBases[i]);
@@ -516,7 +528,9 @@ int main (int argc, char *argv[]) {
     bool   genomeFileB=false;
     IndexedGenome* genome=NULL;
     bool cpg=false;
-    
+    string bedfilename;
+    void *bed = 0; // BED data structure
+
     string usage=string(""+string(argv[0])+" <options>  [in BAM file]"+
 			"\nThis program reads a BAM file and produces a deamination profile for the\n"+
 			"5' and 3' ends\n"+
@@ -530,6 +544,7 @@ int main (int argc, char *argv[]) {
 			"\t\t"+"-length\t[length]\tDo not consider bases beyond this length  (Default: "+stringify(lengthMaxToPrint)+" ) \n"+
 			"\t\t"+"-err\t[error rate]\tSubstract [error rate] from the rates to account for sequencing errors  (Default: "+stringify(errorToRemove)+" ) \n"+
 			"\t\t"+"-log\t\t\tPrint substitutions on a PHRED logarithmic scale  (Default: "+stringify(phred)+" ) \n"+
+			"\t\t"+"-bed\t[bed file]\tOnly consider positions in the bed file  (Default: not used ) \n"+
 
 
 			"\n\n\tYou can specify either one of the two:\n"+
@@ -563,6 +578,12 @@ int main (int argc, char *argv[]) {
 
         if(string(argv[i]) == "-log"  ){
             phred=true;
+            continue;
+        }
+
+        if(string(argv[i]) == "-bed"  ){
+            bedfilename=string(argv[i+1]);
+	    i++;
             continue;
         }
 
@@ -677,6 +698,9 @@ int main (int argc, char *argv[]) {
 	}
 
     }
+    if(!bedfilename.empty()){
+	bed = bed_read(bedfilename.c_str()); 
+    }
 
     typesOfDimer5p       = vector< vector<unsigned int> >();
     typesOfDimer3p       = vector< vector<unsigned int> >();
@@ -790,7 +814,7 @@ int main (int argc, char *argv[]) {
 	    refFromFasta+=refFromFasta_[ refFromFasta_.size() -1 ];
 	}
 	
-	increaseCounters(b,reconstructedReference.first, reconstructedReference.second,minQualBase,refFromFasta); //start cycle numberOfCycles-1
+	increaseCounters(b,reconstructedReference.first, reconstructedReference.second,minQualBase,refFromFasta,h,bed); //start cycle numberOfCycles-1
     }
     
     bam_destroy1(b);
@@ -1193,7 +1217,8 @@ int main (int argc, char *argv[]) {
 
 
     file3pFP.close();
-   
+    if (bed) bed_destroy(bed);
+
     return 0;
 }
 
