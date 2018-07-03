@@ -206,7 +206,7 @@ vector< vector<unsigned int> > typesOfDimer3pSingle; //3' deam rates when the 5'
 
 
 //increases the counters mismatches and typesOfMismatches of a given BamAlignment object
-inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta, const bam_hdr_t *h,void *bed){ // ,int firstCycleRead,int increment
+inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta, const bam_hdr_t *h,void *bed,bool mask){ // ,int firstCycleRead,int increment
 
     char refeBase;
     char readBase;
@@ -227,9 +227,9 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 
     
     i=0; //5p for forward str, 3p for reverse
-    cerr<<"bed1 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
-    if(bed && !bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[i], reconstructedReferencePos[i] + 1) == 0) 	goto eval3pdeam;
-    cerr<<"bed2 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+    //cerr<<"bed1 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+    if(bed && bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[i], reconstructedReferencePos[i] + 1)==int(mask)) 	goto eval3pdeam;
+    //cerr<<"bed2 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
     refeBase=toupper(reconstructedReference[i]);
     
     //readBase=toupper(         al.QueryBases[i]);
@@ -285,9 +285,9 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
  eval3pdeam:
     //i=int(al.QueryBases.size())-1; //3p for forward str, 5p for reverse
     i=b->core.l_qseq-1;
-    cerr<<"bed3 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
-    if(bed && !bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[i], reconstructedReferencePos[i] + 1) == 0) 	goto iterateLoop;
-    cerr<<"bed4 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+    //cerr<<"bed3 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+    if(bed && bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[i], reconstructedReferencePos[i] + 1) == int(mask)) 	goto iterateLoop;
+    //cerr<<"bed4 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
     
     refeBase=toupper(reconstructedReference[i]);
     // readBase=toupper(         al.QueryBases[i]);
@@ -352,9 +352,9 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
     //for(i=0;i<int(al.QueryBases.size());i++,j++){
     for(i=0;i<int(b->core.l_qseq);i++,j++){
 	// cout<<i<<endl;
-	cerr<<"bed5 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
-	if(bed && !bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[j], reconstructedReferencePos[j] + 1) == 0) 	continue;
-	cerr<<"bed6 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
+	//cerr<<"bed5 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<" "<<i<<endl;
+	if(bed && bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[j], reconstructedReferencePos[j] + 1) == int(mask)) 	continue;
+	//cerr<<"bed6 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<" "<<i<<endl;
 
 	refeBase=toupper(reconstructedReference[j]);
 
@@ -367,6 +367,7 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 	//cout<<i<<"\t"<<qualBase<<"\t"<<minQualBase<<endl;
 	//cout<<"-"<<i<<"\t"<<qualBase<<"\t"<<minQualBase<<endl;
 	//cout<<"i="<<i<<" j="<<j<<" "<< refeBase<<" "<<readBase<<" "<<refFromFasta[j+1]<<endl;
+	//cerr<<"readBase "<<readBase<<" refeBase "<<refeBase<<endl;
 	if( refeBase == 'S'){ //don't care about soft clipped or indels	    
 	    j--;
 	    continue;
@@ -519,7 +520,7 @@ int main (int argc, char *argv[]) {
 
     int lengthMaxToPrint = 5;
     int minQualBase      = 0;
-
+    int minLength        = 35;
     bool dpFormat=false;
     bool hFormat=false;
     double errorToRemove=0.0;
@@ -531,6 +532,9 @@ int main (int argc, char *argv[]) {
     string bedfilename;
     void *bed = 0; // BED data structure
 
+    bool bedF=false;
+    bool mask=false;
+
     string usage=string(""+string(argv[0])+" <options>  [in BAM file]"+
 			"\nThis program reads a BAM file and produces a deamination profile for the\n"+
 			"5' and 3' ends\n"+
@@ -540,11 +544,13 @@ int main (int argc, char *argv[]) {
 
 			"\n\n\tOther options:\n"+
 			"\t\t"+"-minq\t\t\tRequire the base to have at least this quality to be considered (Default: "+stringify( minQualBase )+")\n"+
+			"\t\t"+"-minl\t\t\tRequire the base to have at least this quality to be considered (Default: "+stringify( minLength )+")\n"+
 			"\t\t"+"-endo\t\t\tRequire the 5' end to be deaminated to compute the 3' end and vice-versa (Default: "+stringify( endo )+")\n"+
 			"\t\t"+"-length\t[length]\tDo not consider bases beyond this length  (Default: "+stringify(lengthMaxToPrint)+" ) \n"+
 			"\t\t"+"-err\t[error rate]\tSubstract [error rate] from the rates to account for sequencing errors  (Default: "+stringify(errorToRemove)+" ) \n"+
 			"\t\t"+"-log\t\t\tPrint substitutions on a PHRED logarithmic scale  (Default: "+stringify(phred)+" ) \n"+
 			"\t\t"+"-bed\t[bed file]\tOnly consider positions in the bed file  (Default: not used ) \n"+
+			"\t\t"+"-mask\t[bed file]\tMask these positions in the bed file    (Default: not used ) \n"+
 
 
 			"\n\n\tYou can specify either one of the two:\n"+
@@ -568,6 +574,7 @@ int main (int argc, char *argv[]) {
 	return 1;       
     }
 
+    
     for(int i=1;i<(argc-1);i++){ //all but the last 3 args
 
 
@@ -583,6 +590,14 @@ int main (int argc, char *argv[]) {
 
         if(string(argv[i]) == "-bed"  ){
             bedfilename=string(argv[i+1]);
+	    bedF=true;
+	    i++;
+            continue;
+        }
+
+        if(string(argv[i]) == "-mask"  ){
+            bedfilename=string(argv[i+1]);
+	    mask=true;
 	    i++;
             continue;
         }
@@ -594,6 +609,12 @@ int main (int argc, char *argv[]) {
 
         if(string(argv[i]) == "-minq"  ){
             minQualBase=destringify<int>(argv[i+1]);
+            i++;
+            continue;
+        }
+
+        if(string(argv[i]) == "-minl"  ){
+            minLength=destringify<int>(argv[i+1]);
             i++;
             continue;
         }
@@ -671,6 +692,11 @@ int main (int argc, char *argv[]) {
 
 
 	cerr<<"Error: unknown option "<<string(argv[i])<<endl;
+	return 1;
+    }
+
+    if(  bedF &&  mask ){
+	cerr<<"Error: cannot specify both -bed and -mask"<<endl;
 	return 1;
     }
 
@@ -761,10 +787,10 @@ int main (int argc, char *argv[]) {
     }
     b = bam_init1();
     while(sam_read1(fp, h, b) >= 0){
-	if(bam_is_paired(b)   ) continue;
-	if(bam_is_unmapped(b) ) continue;
-	if(bam_is_failed(b) )   continue;
-
+	if(bam_is_paired(b)   )        continue;
+	if(bam_is_unmapped(b) )        continue;
+	if(bam_is_failed(b) )          continue;
+	if(b->core.l_qseq < minLength) continue;
 
 	//cout<<bam_get_qname(b)<<endl;
 	// 	#define bam_is_paired(b)    (((b)->core.flag&BAM_FPAIRED) != 0)
@@ -814,7 +840,7 @@ int main (int argc, char *argv[]) {
 	    refFromFasta+=refFromFasta_[ refFromFasta_.size() -1 ];
 	}
 	
-	increaseCounters(b,reconstructedReference.first, reconstructedReference.second,minQualBase,refFromFasta,h,bed); //start cycle numberOfCycles-1
+	increaseCounters(b,reconstructedReference.first, reconstructedReference.second,minQualBase,refFromFasta,h,bed,mask); //start cycle numberOfCycles-1
     }
     
     bam_destroy1(b);
