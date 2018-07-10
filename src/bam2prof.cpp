@@ -37,6 +37,8 @@ extern "C" {
 #define bam_is_reverse(b)     (((b)->core.flag&BAM_FREVERSE)    != 0)
 #define bam_is_unmapped(b)    (((b)->core.flag&BAM_FUNMAP)      != 0)
 #define bam_is_paired(b)      (((b)->core.flag&BAM_FPAIRED)     != 0)
+#define bam_is_read1(b)       (((b)->core.flag&BAM_FREAD1)      != 0)
+
 #define bam_is_qcfailed(b)    (((b)->core.flag&BAM_FQCFAIL)     != 0)
 #define bam_is_rmdup(b)       (((b)->core.flag&BAM_FDUP)        != 0)
 #define bam_is_failed(b)      ( bam_is_qcfailed(b) || bam_is_rmdup(b) )
@@ -206,7 +208,7 @@ vector< vector<unsigned int> > typesOfDimer3pSingle; //3' deam rates when the 5'
 
 
 //increases the counters mismatches and typesOfMismatches of a given BamAlignment object
-inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta, const bam_hdr_t *h,void *bed,bool mask){ // ,int firstCycleRead,int increment
+inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta, const bam_hdr_t *h,void *bed,bool mask,bool ispaired,bool isfirstpair){ // ,int firstCycleRead,int increment
 
     char refeBase;
     char readBase;
@@ -223,9 +225,12 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
     bool isDeam3pD=false; //G->A 3'
 
     int i;
+    //cerr<<"read  "<<bam_get_qname(b)<<endl;
+    if(ispaired){ //since we cannot evaluate the 5' ends or 3' ends
+	goto iterateLoop;
+    }
 
 
-    
     i=0; //5p for forward str, 3p for reverse
     //cerr<<"bed1 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<endl;
     if(bed && bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[i], reconstructedReferencePos[i] + 1)==int(mask)) 	goto eval3pdeam;
@@ -445,9 +450,16 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 	       
 
 	    //mismatches[cycleToUse]++;
-	    typesOfDimer5p[dist5p][twoBases2index(refeBase,readBase)]++;
-	    typesOfDimer3p[dist3p][twoBases2index(refeBase,readBase)]++;
+	    if( !ispaired ||  isfirstpair){
+		//cerr<<"increase 5p"<<endl;
+		typesOfDimer5p[dist5p][twoBases2index(refeBase,readBase)]++;
+	    }
 
+	    if( !ispaired || !isfirstpair){
+		//cerr<<"increase 3p"<<endl;
+		typesOfDimer3p[dist3p][twoBases2index(refeBase,readBase)]++;
+	    }
+	    
 	    if(!refFromFasta.empty()){
 		if(
 		    ( (refBaseFromFasta     == 'C' && refBaseFromFastaNext == 'G') && !bam_is_reverse(b) ) //!al.IsReverseStrand() )
@@ -455,9 +467,10 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 		    ( (refBaseFromFastaPrev == 'C' && refBaseFromFasta     == 'G') &&  bam_is_reverse(b) ) //al.IsReverseStrand() )
 		){
 		    //cout<<"   CPG: "<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<" ref:"<<refeBase<<" read:"<<readBase<<" "<<al.IsReverseStrand()<<" same="<<(refeBase==readBase)<<endl;
-
-		    typesOfDimer5p_cpg[dist5p][twoBases2index(refeBase,readBase)]++;
-		    typesOfDimer3p_cpg[dist3p][twoBases2index(refeBase,readBase)]++;
+		    if( !ispaired ||  isfirstpair)
+			typesOfDimer5p_cpg[dist5p][twoBases2index(refeBase,readBase)]++;
+		    if( !ispaired || !isfirstpair)
+			typesOfDimer3p_cpg[dist3p][twoBases2index(refeBase,readBase)]++;
 
 		}else{
 		    if( isResolvedDNA(refBaseFromFasta)                               &&
@@ -466,28 +479,36 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 			!(refBaseFromFasta     == 'C' && refBaseFromFastaNext == 'G') &&
 			!(refBaseFromFastaPrev == 'C' && refBaseFromFasta     == 'G')
 		    ){
-			//cout<<"nonCPG: "<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<" ref:"<<refeBase<<" read:"<<readBase<<" "<<al.IsReverseStrand()<<" same="<<(refeBase==readBase)<<endl;
-			typesOfDimer5p_noncpg[dist5p][twoBases2index(refeBase,readBase)]++;
-			typesOfDimer3p_noncpg[dist3p][twoBases2index(refeBase,readBase)]++;
+
+		       //cout<<"nonCPG: "<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<" ref:"<<refeBase<<" read:"<<readBase<<" "<<al.IsReverseStrand()<<" same="<<(refeBase==readBase)<<endl;
+			if( !ispaired ||  isfirstpair)
+			    typesOfDimer5p_noncpg[dist5p][twoBases2index(refeBase,readBase)]++;
+			if( !ispaired || !isfirstpair)
+			    typesOfDimer3p_noncpg[dist3p][twoBases2index(refeBase,readBase)]++;
+			
 		    }
 		}
 	    }
 
 	    if(isDeam5pS){
-		typesOfDimer3pSingle[dist3p][twoBases2index(refeBase,readBase)]++;
+		if( !ispaired || !isfirstpair)
+		    typesOfDimer3pSingle[dist3p][twoBases2index(refeBase,readBase)]++;
 	    }
 
 	    if(isDeam3pS){
-		typesOfDimer5pSingle[dist5p][twoBases2index(refeBase,readBase)]++;
+		if( !ispaired ||  isfirstpair)
+		    typesOfDimer5pSingle[dist5p][twoBases2index(refeBase,readBase)]++;
 	    }
 
 
 	    if(isDeam5pD){
-		typesOfDimer3pDouble[dist3p][twoBases2index(refeBase,readBase)]++;
+		if( !ispaired || !isfirstpair)
+		    typesOfDimer3pDouble[dist3p][twoBases2index(refeBase,readBase)]++;
 	    }
 
 	    if(isDeam3pD){
-		typesOfDimer5pDouble[dist5p][twoBases2index(refeBase,readBase)]++;
+		if( !ispaired ||  isfirstpair)
+		    typesOfDimer5pDouble[dist5p][twoBases2index(refeBase,readBase)]++;
 	    }
 
 
@@ -534,6 +555,7 @@ int main (int argc, char *argv[]) {
 
     bool bedF=false;
     bool mask=false;
+    bool paired=false;
 
     string usage=string(""+string(argv[0])+" <options>  [in BAM file]"+
 			"\nThis program reads a BAM file and produces a deamination profile for the\n"+
@@ -549,8 +571,9 @@ int main (int argc, char *argv[]) {
 			"\t\t"+"-length\t[length]\tDo not consider bases beyond this length  (Default: "+stringify(lengthMaxToPrint)+" ) \n"+
 			"\t\t"+"-err\t[error rate]\tSubstract [error rate] from the rates to account for sequencing errors  (Default: "+stringify(errorToRemove)+" ) \n"+
 			"\t\t"+"-log\t\t\tPrint substitutions on a PHRED logarithmic scale  (Default: "+stringify(phred)+" ) \n"+
-			"\t\t"+"-bed\t[bed file]\tOnly consider positions in the bed file  (Default: not used ) \n"+
-			"\t\t"+"-mask\t[bed file]\tMask these positions in the bed file    (Default: not used ) \n"+
+			"\t\t"+"-bed\t[bed file]\tOnly consider positions in the bed file  (Default: "+booleanAsString( bedF )+" ) \n"+
+			"\t\t"+"-mask\t[bed file]\tMask these positions in the bed file    (Default: "+booleanAsString( mask )+" ) \n"+
+			"\t\t"+"-paired\t\t\tAllow paired reads    (Default: "+booleanAsString( paired )+" ) \n"+
 
 
 			"\n\n\tYou can specify either one of the two:\n"+
@@ -587,6 +610,13 @@ int main (int argc, char *argv[]) {
             phred=true;
             continue;
         }
+
+
+        if(string(argv[i]) == "-paired"  ){
+            paired=true;
+            continue;
+        }
+
 
         if(string(argv[i]) == "-bed"  ){
             bedfilename=string(argv[i+1]);
@@ -695,6 +725,12 @@ int main (int argc, char *argv[]) {
 	return 1;
     }
 
+    if(  endo &&  paired ){
+	cerr<<"Error: cannot specify both -endo and -paired"<<endl;
+	return 1;
+    }
+
+    
     if(  bedF &&  mask ){
 	cerr<<"Error: cannot specify both -bed and -mask"<<endl;
 	return 1;
@@ -787,11 +823,20 @@ int main (int argc, char *argv[]) {
     }
     b = bam_init1();
     while(sam_read1(fp, h, b) >= 0){
-	if(bam_is_paired(b)   )        continue;
 	if(bam_is_unmapped(b) )        continue;
 	if(bam_is_failed(b) )          continue;
 	if(b->core.l_qseq < minLength) continue;
-
+	bool ispaired    = bam_is_paired(b);
+	bool isfirstpair = bam_is_read1(b);
+	
+	if(!paired){
+	    
+	    if( ispaired   ){
+		cerr<<"skipping "<<bam_get_qname(b)<<endl;
+		continue;
+	    }
+	}
+	//cerr<<"keeping "<<bam_get_qname(b)<<endl;
 	//cout<<bam_get_qname(b)<<endl;
 	// 	#define bam_is_paired(b)    (((b)->core.flag&BAM_FPAIRED) != 0)
 	// #define bam_is_qcfailed(b)  (((b)->core.flag&BAM_FQCFAIL)     != 0)
@@ -840,7 +885,7 @@ int main (int argc, char *argv[]) {
 	    refFromFasta+=refFromFasta_[ refFromFasta_.size() -1 ];
 	}
 	
-	increaseCounters(b,reconstructedReference.first, reconstructedReference.second,minQualBase,refFromFasta,h,bed,mask); //start cycle numberOfCycles-1
+	increaseCounters(b,reconstructedReference.first, reconstructedReference.second,minQualBase,refFromFasta,h,bed,mask,ispaired,isfirstpair); //start cycle numberOfCycles-1
     }
     
     bam_destroy1(b);
