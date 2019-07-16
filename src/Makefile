@@ -7,16 +7,16 @@ LDFLAGS  = -lgsl -lgslcblas -llzma -lbz2 -lz  -lpthread
 LDLIBS   = ../lib/samtools/bedidx.o ../lib/htslib/libhts.a ../lib/samtools/libbam.a ../lib/samtools/libst.a 
 
 
-all:  ../lib/libgab/utils.o  ../lib/htslib/libhts.a ../lib/samtools/bedidx.o bam2prof #testComp testCompCont
+all:  ../lib/libgab/utils.o  ../lib/htslib/libhts.a ../lib/samtools/bedidx.o bam2prof diffprof #testComp testCompCont
 
 %.o: %.cpp #../lib/libgab/utils.o  
 	${CXX} ${CXXFLAGS} $^ -o $@
 
-
-
 bam2prof:	bam2prof.o  ReconsReferenceHTSLIB.o ../lib/libgab/utils.o   ../lib/libgab/gzstream/libgzstream.a
 	${CXX} -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
+diffprof:	diffprof.o  ReconsReferenceHTSLIB.o ../lib/libgab/utils.o   ../lib/libgab/gzstream/libgzstream.a
+	${CXX} -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 
 ../lib/htslib/libhts.a:  ../lib/htslib/hts_internal.h
@@ -43,6 +43,6 @@ bam2prof:	bam2prof.o  ReconsReferenceHTSLIB.o ../lib/libgab/utils.o   ../lib/lib
 
 
 clean :
-	rm -f *.o bam2prof
+	rm -f *.o bam2prof diffprof
 
 
