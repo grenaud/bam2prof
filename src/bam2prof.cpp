@@ -41,7 +41,10 @@ extern "C" {
 
 #define bam_is_qcfailed(b)    (((b)->core.flag&BAM_FQCFAIL)     != 0)
 #define bam_is_rmdup(b)       (((b)->core.flag&BAM_FDUP)        != 0)
-#define bam_is_failed(b)      ( bam_is_qcfailed(b) || bam_is_rmdup(b) )
+#define bam_is_sec(b)         (((b)->core.flag&BAM_FSECONDARY)        != 0)
+#define bam_is_supp(b)        (((b)->core.flag&BAM_FSUPPLEMENTARY)    != 0)
+
+#define bam_is_failed(b)      ( bam_is_qcfailed(b) || bam_is_rmdup(b) || bam_is_sec(b) || bam_is_supp(b) )
 #define bam_mqual(b)          ((b)->core.qual)
 
 using namespace std;
@@ -556,6 +559,7 @@ int main (int argc, char *argv[]) {
     bool bedF=false;
     bool mask=false;
     bool paired=false;
+    bool quiet=false;
 
     string usage=string(""+string(argv[0])+" <options>  [in BAM file]"+
 			"\nThis program reads a BAM file and produces a deamination profile for the\n"+
@@ -587,11 +591,12 @@ int main (int argc, char *argv[]) {
 			"\t\t"+"-3p\t[output file]\tOutput profile for the 3' end (Default: "+stringify(file3p)+")\n"+
 			"\t\t"+"-dp\t\t\tOutput in damage-patterns format (Default: "+booleanAsString(dpFormat)+")\n"+
 			"\t\t"+"-h\t\t\tMore human readible output (Default: "+booleanAsString(hFormat)+")\n"+
+			"\t\t"+"-q\t\t\tDo not print why reads are skipped (Default: "+booleanAsString(quiet)+")\n"+
 		       
 			"\n");
 
     if(argc == 1 ||
-       (argc == 2 && (string(argv[0]) == "-h" || string(argv[0]) == "--help") )
+       (argc == 2 && (string(argv[0]) == "--help") )
     ){
 	cerr << "Usage "<<usage<<endl;
 	return 1;       
@@ -634,6 +639,11 @@ int main (int argc, char *argv[]) {
 
         if(string(argv[i]) == "-h"  ){
             hFormat=true;
+            continue;
+        }
+
+        if(string(argv[i]) == "-q"  ){
+            quiet=true;
             continue;
         }
 
@@ -823,16 +833,28 @@ int main (int argc, char *argv[]) {
     }
     b = bam_init1();
     while(sam_read1(fp, h, b) >= 0){
-	if(bam_is_unmapped(b) )        continue;
-	if(bam_is_failed(b) )          continue;
-	if(b->core.l_qseq < minLength) continue;
+	if(bam_is_unmapped(b) ){
+	    if(!quiet)
+		cerr<<"skipping "<<bam_get_qname(b)<<" unmapped"<<endl;
+	    continue;
+	}
+	if(bam_is_failed(b) ){
+	    if(!quiet)
+		cerr<<"skipping "<<bam_get_qname(b)<<" failed"<<endl;
+	    continue;
+	}
+	if(b->core.l_qseq < minLength){
+	    if(!quiet)
+		cerr<<"skipping "<<bam_get_qname(b)<<" too short"<<endl;
+	    continue;
+	}
 	bool ispaired    = bam_is_paired(b);
 	bool isfirstpair = bam_is_read1(b);
 	
-	if(!paired){
-	    
+	if(!paired){    
 	    if( ispaired   ){
-		cerr<<"skipping "<<bam_get_qname(b)<<endl;
+		if(!quiet)
+		    cerr<<"skipping "<<bam_get_qname(b)<<" is paired (can be considered using the -paired flag"<<endl;
 		continue;
 	    }
 	}
