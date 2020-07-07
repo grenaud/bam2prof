@@ -269,17 +269,16 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
     if(refeBase == 'M'){//match
 	refeBase =  readBase;
     }
-
-    if( isResolvedDNA(refeBase)  && 
-	isResolvedDNA(readBase) ){
+    refeBase = refToChar[refeBase];
+    readBase = refToChar[readBase];
+    if( refeBase!=4  && readBase!=4 ){
 	// if(al.IsReverseStrand()){ //need to take the complement
 	if( bam_is_reverse(b) ){
-	    refeBase=complement(refeBase);
-	    readBase=complement(readBase);
+	    refeBase=com[refeBase];
+	    readBase=com[readBase];
 	}
 	
-	if(refeBase == 'C' &&
-	   readBase == 'T' ){ //C->T
+	if(refeBase == 1 && readBase == 3 ){ //C->T
 
 	    //if(al.IsReverseStrand()){ //3'
 	    if( bam_is_reverse(b) ){
@@ -291,8 +290,7 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
 	}
 
 
-	if(refeBase == 'G' &&
-	   readBase == 'A' ){ //G->A
+	if(refeBase == 2 && readBase == 0 ){ //G->A
 
 	    //if(al.IsReverseStrand()){ //3'
 	    if( bam_is_reverse(b) ){
@@ -327,17 +325,17 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
     if(refeBase == 'M'){//match
 	refeBase =  readBase;
     }
-
-    if( isResolvedDNA(refeBase)  && 
-	isResolvedDNA(readBase) ){
+    refeBase = refToChar[refeBase];
+    readBase = refToChar[readBase];
+    if( refeBase!=4  && readBase!=4 ){
 	//if(al.IsReverseStrand()){ //need to take the complement
 	if( bam_is_reverse(b) ){
-	    refeBase=complement(refeBase);
-	    readBase=complement(readBase);
+	    refeBase=com[refeBase];
+	    readBase=com[readBase];
 	}
 	
-	if(refeBase == 'C' &&
-	   readBase == 'T' ){ //C->T
+	if(refeBase == 1 &&
+	   readBase == 3 ){ //C->T
 
 	    // if(al.IsReverseStrand()){ //5'
 	    if( bam_is_reverse(b) ){
@@ -349,8 +347,8 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
 	    }
 	}
 
-	if(refeBase == 'G' &&
-	   readBase == 'A' ){ //G->A
+	if(refeBase == 2 &&
+	   readBase == 0 ){ //G->A
 
 	    // if(al.IsReverseStrand()){ //5'
 	    if( bam_is_reverse(b) ){
@@ -443,17 +441,17 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
 	}
 
 	// cout<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<endl;
-	
-	if( isResolvedDNA(refeBase)  && 
-	    isResolvedDNA(readBase) ){
+	refeBase = refToChar[refeBase];
+	readBase = refToChar[readBase];
+	if( refeBase!=4  && readBase!=4 ){
 	    int dist5p=i;
 	    //int dist3p=int(al.QueryBases.size())-1-i;
 	    int dist3p=b->core.l_qseq-1-i;
 	    
 	    //  if(al.IsReverseStrand()){ //need to take the complement
 	    if( bam_is_reverse(b) ){
-		refeBase=complement(refeBase);
-		readBase=complement(readBase);
+		refeBase=com[refeBase];
+		readBase=com[readBase];
 		//dist5p=int(al.QueryBases.size())-1-i;
 		dist5p=int(b->core.l_qseq)-1-i;
 		dist3p=i;
@@ -469,12 +467,12 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
 	    //mismatches[cycleToUse]++;
 	    if( !ispaired ||  isfirstpair){
 		//cerr<<"increase 5p"<<endl;
-		typesOfDimer5p[dist5p][twoBases2index(refeBase,readBase)]++;
+		typesOfDimer5p[dist5p][toIndex[refeBase][readBase]]++;
 	    }
 
 	    if( !ispaired || !isfirstpair){
 		//cerr<<"increase 3p"<<endl;
-		typesOfDimer3p[dist3p][twoBases2index(refeBase,readBase)]++;
+		typesOfDimer3p[dist3p][toIndex[refeBase][readBase]]++;
 	    }
 	    
 	    if(!refFromFasta.empty()){
@@ -485,9 +483,9 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
 		){
 		    //cout<<"   CPG: "<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<" ref:"<<refeBase<<" read:"<<readBase<<" "<<al.IsReverseStrand()<<" same="<<(refeBase==readBase)<<endl;
 		    if( !ispaired ||  isfirstpair)
-			typesOfDimer5p_cpg[dist5p][twoBases2index(refeBase,readBase)]++;
+			typesOfDimer5p_cpg[dist5p][toIndex[refeBase][readBase]]++;
 		    if( !ispaired || !isfirstpair)
-			typesOfDimer3p_cpg[dist3p][twoBases2index(refeBase,readBase)]++;
+			typesOfDimer3p_cpg[dist3p][toIndex[refeBase][readBase]]++;
 
 		}else{
 		    if( isResolvedDNA(refBaseFromFasta)                               &&
@@ -499,9 +497,9 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
 
 		       //cout<<"nonCPG: "<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<" ref:"<<refeBase<<" read:"<<readBase<<" "<<al.IsReverseStrand()<<" same="<<(refeBase==readBase)<<endl;
 			if( !ispaired ||  isfirstpair)
-			    typesOfDimer5p_noncpg[dist5p][twoBases2index(refeBase,readBase)]++;
+			    typesOfDimer5p_noncpg[dist5p][toIndex[refeBase][readBase]]++;
 			if( !ispaired || !isfirstpair)
-			    typesOfDimer3p_noncpg[dist3p][twoBases2index(refeBase,readBase)]++;
+			    typesOfDimer3p_noncpg[dist3p][toIndex[refeBase][readBase]]++;
 			
 		    }
 		}
@@ -509,23 +507,23 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
 
 	    if(isDeam5pS){
 		if( !ispaired || !isfirstpair)
-		    typesOfDimer3pSingle[dist3p][twoBases2index(refeBase,readBase)]++;
+		    typesOfDimer3pSingle[dist3p][toIndex[refeBase][readBase]]++;
 	    }
 
 	    if(isDeam3pS){
 		if( !ispaired ||  isfirstpair)
-		    typesOfDimer5pSingle[dist5p][twoBases2index(refeBase,readBase)]++;
+		    typesOfDimer5pSingle[dist5p][toIndex[refeBase][readBase]]++;
 	    }
 
 
 	    if(isDeam5pD){
 		if( !ispaired || !isfirstpair)
-		    typesOfDimer3pDouble[dist3p][twoBases2index(refeBase,readBase)]++;
+		    typesOfDimer3pDouble[dist3p][toIndex[refeBase][readBase]]++;
 	    }
 
 	    if(isDeam3pD){
 		if( !ispaired ||  isfirstpair)
-		    typesOfDimer5pDouble[dist5p][twoBases2index(refeBase,readBase)]++;
+		    typesOfDimer5pDouble[dist5p][toIndex[refeBase][readBase]]++;
 	    }
 
 
