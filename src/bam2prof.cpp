@@ -832,6 +832,7 @@ int main (int argc, char *argv[]) {
         return 1;
     }
     b = bam_init1();
+    pair< string, vector<int> >  reconstructedReference;
     while(sam_read1(fp, h, b) >= 0){
 	if(bam_is_unmapped(b) ){
 	    if(!quiet)
@@ -867,7 +868,7 @@ int main (int argc, char *argv[]) {
 	// #define bam_mqual(b)        ((b)->core.qual)
 
 	
-	pair< string, vector<int> >  reconstructedReference = reconstructRefWithPosHTS(b);
+	reconstructRefWithPosHTS(b,reconstructedReference);
 	if(genomeFileB){
 	    //string ch = refData[al.RefID].RefName;
 	    string ch = h->target_name[b->core.tid];

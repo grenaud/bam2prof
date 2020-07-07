@@ -138,12 +138,15 @@ string reconstructRef(const BamAlignment  * al){
  *
   \return A pair with the string representation of the reference and the vector of the positions on the ref
 */
-pair< string, vector<int> >  reconstructRefWithPosHTS(const bam1_t   * b){
+static char *reconstructedTemp=(char*)calloc(256,1);
+void  reconstructRefWithPosHTS(const bam1_t   * b,pair< string, vector<int> > &smart){
+  smart.first = "";
+  smart.second.clear();
+  memset(reconstructedTemp,0,256);
+  static vector<mdField> parsedMD;
     //initialize
     // int editDist=-1;
-    string mdFieldString="";
-    string reconstructed="";
-    string reconstructedTemp="";
+
 
     //skip unmapped
     if( ((b)->core.flag&BAM_FUNMAP) != 0 ){
@@ -165,20 +168,19 @@ pair< string, vector<int> >  reconstructRefWithPosHTS(const bam1_t   * b){
     // cerr<<"rg1 "<<rgptr<<endl;
     // cout<<"isize "<<isize<<endl;
             
-    if(mdptr){
-	mdFieldString = string( (const char*)(mdptr+1));
-    }else{
+    if(mdptr==NULL){
 	cerr<<"ReconsReferenceHTSLIB: Cannot get MD tag from "<<bam_get_qname(b)<<endl;
 	exit(1);
     }
 
     int32_t   n_cigar_op = bam_get_n_cigar_op(b);
     uint32_t *cigar      = bam_get_cigar(b);
-
+    int at =0;
     for(int32_t i = 0; i < n_cigar_op; i++){
 	char opchr = bam_cigar_opchr(cigar[i]);
         int32_t oplen = bam_cigar_oplen(cigar[i]);
-	reconstructedTemp+=string(oplen,opchr);
+	memset(reconstructedTemp+at,opchr,oplen);
+	at += oplen;
     }
     //exit(1);
     /*    
@@ -190,9 +192,9 @@ pair< string, vector<int> >  reconstructRefWithPosHTS(const bam1_t   * b){
 
     //get a vector representation of the MD field	
 
-    vector<mdField> parsedMD=mdString2Vector(mdFieldString);
+    mdString2Vector((char *)mdptr+1,parsedMD);
 
-    vector<int> positionsOnControl;
+    
     
     //int initialPositionControl=al->Position;
     int initialPositionControl=b->core.pos;
@@ -200,7 +202,7 @@ pair< string, vector<int> >  reconstructRefWithPosHTS(const bam1_t   * b){
     //combine the CIGAR and MD into one single string
     int mdVectorIndex=0;
 
-    for(unsigned int i=0;i<reconstructedTemp.size();i++){
+    for(unsigned int i=0;i<strlen(reconstructedTemp);i++){
 	if(reconstructedTemp[i] == 'M' ){ //only look at matches and indels	    
 		
 	    if(mdVectorIndex<int(parsedMD.size())){ //still have mismatches
@@ -210,14 +212,14 @@ pair< string, vector<int> >  reconstructRefWithPosHTS(const bam1_t   * b){
 		    if(parsedMD[mdVectorIndex].bp == DUMMYCHAR){ //no char to add, need to backtrack on the CIGAR
 			i--;
 		    }else{
-			reconstructed+=parsedMD[mdVectorIndex].bp;
-			positionsOnControl.push_back(initialPositionControl++);
+			smart.first +=parsedMD[mdVectorIndex].bp;
+			smart.second.push_back(initialPositionControl++);
 		    }
 		    mdVectorIndex++;
 		}else{ //wait until we reach a mismatch
-		    reconstructed+=reconstructedTemp[i];
+		    smart.first +=reconstructedTemp[i];
 		    parsedMD[mdVectorIndex].offset--;
-		    positionsOnControl.push_back(initialPositionControl++);
+		    smart.second.push_back(initialPositionControl++);
 		}
 
 		//skipping all the positions with deletions on the read
@@ -230,27 +232,24 @@ pair< string, vector<int> >  reconstructRefWithPosHTS(const bam1_t   * b){
 		}
 		    
 	    }else{
-		reconstructed+=reconstructedTemp[i];
-		positionsOnControl.push_back(initialPositionControl++);
+		smart.first +=reconstructedTemp[i];
+		smart.second.push_back(initialPositionControl++);
 	    }
 	}else{
 	    if(reconstructedTemp[i] == 'S' || reconstructedTemp[i] == 'I'){ //soft clipped bases and indels
-		reconstructed+=reconstructedTemp[i];
-		positionsOnControl.push_back(initialPositionControl);
+		smart.first +=reconstructedTemp[i];
+		smart.second.push_back(initialPositionControl);
 	    }
 	}
     }
 
-    if(int(reconstructed.size()) != b->core.l_qseq){
+    if(int(smart.first.size()) != b->core.l_qseq){
 	cerr << "Could not recreate the sequence for read "<<bam_get_qname(b)  << endl;
 	exit(1);
     }
 
-    if(positionsOnControl.size() != reconstructed.size()){
+    if(smart.second.size() != smart.first.size()){
 	cerr << "Could not determine the positions for the read "<<bam_get_qname(b) << endl;
 	exit(1);
     }
-
-
-    return pair< string, vector<int> >(reconstructed,positionsOnControl);
 }

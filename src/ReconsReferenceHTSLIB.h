@@ -53,8 +53,8 @@ static char DUMMYCHAR='#';
   \return vector<mdField> a vector of mdField structures
 */
 
-inline vector<mdField> mdString2Vector(const string & mdFieldToParse){
-    vector<mdField> toReturn;
+void  mdString2Vector(const char * mdFieldToParse,vector<mdField> &toReturn){
+  toReturn.clear();
     int i=0;
     // int addToOffset=0;
     mdField toadd;
@@ -63,7 +63,7 @@ inline vector<mdField> mdString2Vector(const string & mdFieldToParse){
     toadd.offset=0;
     toadd.bp='N';
 
-    while(int(mdFieldToParse.length()) != i){
+    while(strlen(mdFieldToParse) != i){
 	if(isdigit(mdFieldToParse[i])){
 	    toadd.offset=toadd.offset*10+(int(mdFieldToParse[i])-asciiOffsetZero);
 	}else{
@@ -97,11 +97,10 @@ inline vector<mdField> mdString2Vector(const string & mdFieldToParse){
 	}
 	i++;
     }
-    return toReturn;
 }
 
 /* string reconstructRef(const BamAlignment  * al); */
-pair< string, vector<int> > reconstructRefWithPosHTS(const bam1_t   * b);
+void reconstructRefWithPosHTS(const bam1_t   * b,pair< string, vector<int> > &);
 
 /* int numberOfDeletions(const BamAlignment  * al); */
 
