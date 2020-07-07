@@ -129,6 +129,61 @@ string reconstructRef(const BamAlignment  * al){
 */
 
 
+//! To convert the MD first into a vector of mdField structs
+/*!
+ *
+ * This function converts the MD field into a vector of mdField structs
+ * we skip deletions in the read (ins in reference)
+ *
+  \return vector<mdField> a vector of mdField structures
+*/
+
+void  mdString2Vector(const char * mdFieldToParse,vector<mdField> &toReturn){
+  toReturn.clear();
+    int i=0;
+    // int addToOffset=0;
+    mdField toadd;
+    
+
+    toadd.offset=0;
+    toadd.bp='N';
+
+    while(strlen(mdFieldToParse) != i){//tsk compiler warning
+	if(isdigit(mdFieldToParse[i])){
+	    toadd.offset=toadd.offset*10+(int(mdFieldToParse[i])-asciiOffsetZero);
+	}else{
+	    //deletions in read (insertion in reference)
+	    if(mdFieldToParse[i] == '^'){
+		if(toadd.offset != 0){
+		    toadd.bp=DUMMYCHAR;
+		    toReturn.push_back(toadd);
+		    toadd.offset=0;
+		    toadd.bp='N';
+		}
+
+		i++;
+		mdField toadd2;
+		toadd2.offset=0;
+		toadd2.bp='^';
+		while(isalpha(mdFieldToParse[i])){
+		    i++;
+		    toadd2.offset++;
+		}
+		toReturn.push_back(toadd2);
+		i--;
+	    }else{
+		toadd.bp=mdFieldToParse[i];
+		toReturn.push_back(toadd);
+
+		toadd.offset=0;
+		toadd.bp='N';
+	    }
+
+	}
+	i++;
+    }
+}
+
 
 //! This function returns a pair with the string representation of the reference and the vector of the positions on the ref
 /*!
@@ -139,10 +194,11 @@ string reconstructRef(const BamAlignment  * al){
   \return A pair with the string representation of the reference and the vector of the positions on the ref
 */
 static char *reconstructedTemp=(char*)calloc(256,1);
-void  reconstructRefWithPosHTS(const bam1_t   * b,pair< string, vector<int> > &smart){
-  smart.first = "";
+void  reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int> > &smart){
+  smart.first->l = 0; 
   smart.second.clear();
   memset(reconstructedTemp,0,256);
+  
   static vector<mdField> parsedMD;
     //initialize
     // int editDist=-1;
@@ -212,12 +268,12 @@ void  reconstructRefWithPosHTS(const bam1_t   * b,pair< string, vector<int> > &s
 		    if(parsedMD[mdVectorIndex].bp == DUMMYCHAR){ //no char to add, need to backtrack on the CIGAR
 			i--;
 		    }else{
-			smart.first +=parsedMD[mdVectorIndex].bp;
+			kputc(parsedMD[mdVectorIndex].bp,smart.first);
 			smart.second.push_back(initialPositionControl++);
 		    }
 		    mdVectorIndex++;
 		}else{ //wait until we reach a mismatch
-		    smart.first +=reconstructedTemp[i];
+		  kputc(reconstructedTemp[i],smart.first);
 		    parsedMD[mdVectorIndex].offset--;
 		    smart.second.push_back(initialPositionControl++);
 		}
@@ -232,23 +288,23 @@ void  reconstructRefWithPosHTS(const bam1_t   * b,pair< string, vector<int> > &s
 		}
 		    
 	    }else{
-		smart.first +=reconstructedTemp[i];
-		smart.second.push_back(initialPositionControl++);
+	      kputc(reconstructedTemp[i],smart.first);
+	      smart.second.push_back(initialPositionControl++);
 	    }
 	}else{
 	    if(reconstructedTemp[i] == 'S' || reconstructedTemp[i] == 'I'){ //soft clipped bases and indels
-		smart.first +=reconstructedTemp[i];
-		smart.second.push_back(initialPositionControl);
+	      kputc(reconstructedTemp[i],smart.first);
+	      smart.second.push_back(initialPositionControl);
 	    }
 	}
     }
 
-    if(int(smart.first.size()) != b->core.l_qseq){
+    if(smart.first->l != b->core.l_qseq){
 	cerr << "Could not recreate the sequence for read "<<bam_get_qname(b)  << endl;
 	exit(1);
     }
 
-    if(smart.second.size() != smart.first.size()){
+    if(smart.second.size() != smart.first->l){
 	cerr << "Could not determine the positions for the read "<<bam_get_qname(b) << endl;
 	exit(1);
     }

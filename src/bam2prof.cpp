@@ -211,7 +211,7 @@ vector< vector<unsigned int> > typesOfDimer3pSingle; //3' deam rates when the 5'
 
 
 //increases the counters mismatches and typesOfMismatches of a given BamAlignment object
-inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta, const bam_hdr_t *h,void *bed,bool mask,bool ispaired,bool isfirstpair){ // ,int firstCycleRead,int increment
+inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta, const bam_hdr_t *h,void *bed,bool mask,bool ispaired,bool isfirstpair){ // ,int firstCycleRead,int increment
 
     char refeBase;
     char readBase;
@@ -832,7 +832,10 @@ int main (int argc, char *argv[]) {
         return 1;
     }
     b = bam_init1();
-    pair< string, vector<int> >  reconstructedReference;
+    pair< kstring_t *, vector<int> >  reconstructedReference;
+    reconstructedReference.first =(kstring_t *) calloc(sizeof(kstring_t),1);
+    reconstructedReference.first->s =0 ;
+    reconstructedReference.first->l =    reconstructedReference.first->m =0;
     while(sam_read1(fp, h, b) >= 0){
 	if(bam_is_unmapped(b) ){
 	    if(!quiet)
@@ -882,9 +885,9 @@ int main (int argc, char *argv[]) {
 	    faidx1_t & findx=genome->name2index[ch];
 	
 	
-	    unsigned int lengthToExtract = reconstructedReference.first.size();
-	    for(int i=0;i<int(reconstructedReference.first.size());i++){
-		if(reconstructedReference.first[i] == 'I')
+	    unsigned int lengthToExtract = reconstructedReference.first->l;
+	    for(int i=0;i<int(reconstructedReference.first->l);i++){
+		if(reconstructedReference.first->s[i] == 'I')
 		    lengthToExtract--;		
 	    }
 	    //int startPos = al.Position;
@@ -898,8 +901,8 @@ int main (int argc, char *argv[]) {
 	    refFromFasta = "";
 	    refFromFasta=refFromFasta_[0];
 	    int j=1;
-	    for(int i=0;i<int(reconstructedReference.first.size());i++){		
-		if(reconstructedReference.first[i] == 'I'){
+	    for(int i=0;i<reconstructedReference.first->l;i++){		
+		if(reconstructedReference.first->s[i] == 'I'){
 		    refFromFasta+="I";
 		}else{
 		    refFromFasta+=refFromFasta_[j++];
@@ -908,7 +911,7 @@ int main (int argc, char *argv[]) {
 	    refFromFasta+=refFromFasta_[ refFromFasta_.size() -1 ];
 	}
 	
-	increaseCounters(b,reconstructedReference.first, reconstructedReference.second,minQualBase,refFromFasta,h,bed,mask,ispaired,isfirstpair); //start cycle numberOfCycles-1
+	increaseCounters(b,reconstructedReference.first->s, reconstructedReference.second,minQualBase,refFromFasta,h,bed,mask,ispaired,isfirstpair); //start cycle numberOfCycles-1
     }
     
     bam_destroy1(b);

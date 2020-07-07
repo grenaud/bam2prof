@@ -18,6 +18,7 @@ extern "C" {
     //#include "bam.h"
 #include "htslib/sam.h"
 #include "htslib/bgzf.h"
+#include "htslib/kstring.h"
 #include "bam.h"
 
 #include "samtools.h"
@@ -44,63 +45,8 @@ static char DUMMYCHAR='#';
 
 
 
-//! To convert the MD first into a vector of mdField structs
-/*!
- *
- * This function converts the MD field into a vector of mdField structs
- * we skip deletions in the read (ins in reference)
- *
-  \return vector<mdField> a vector of mdField structures
-*/
-
-void  mdString2Vector(const char * mdFieldToParse,vector<mdField> &toReturn){
-  toReturn.clear();
-    int i=0;
-    // int addToOffset=0;
-    mdField toadd;
-    
-
-    toadd.offset=0;
-    toadd.bp='N';
-
-    while(strlen(mdFieldToParse) != i){
-	if(isdigit(mdFieldToParse[i])){
-	    toadd.offset=toadd.offset*10+(int(mdFieldToParse[i])-asciiOffsetZero);
-	}else{
-	    //deletions in read (insertion in reference)
-	    if(mdFieldToParse[i] == '^'){
-		if(toadd.offset != 0){
-		    toadd.bp=DUMMYCHAR;
-		    toReturn.push_back(toadd);
-		    toadd.offset=0;
-		    toadd.bp='N';
-		}
-
-		i++;
-		mdField toadd2;
-		toadd2.offset=0;
-		toadd2.bp='^';
-		while(isalpha(mdFieldToParse[i])){
-		    i++;
-		    toadd2.offset++;
-		}
-		toReturn.push_back(toadd2);
-		i--;
-	    }else{
-		toadd.bp=mdFieldToParse[i];
-		toReturn.push_back(toadd);
-
-		toadd.offset=0;
-		toadd.bp='N';
-	    }
-
-	}
-	i++;
-    }
-}
-
 /* string reconstructRef(const BamAlignment  * al); */
-void reconstructRefWithPosHTS(const bam1_t   * b,pair< string, vector<int> > &);
+void reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int> > &);
 
 /* int numberOfDeletions(const BamAlignment  * al); */
 
