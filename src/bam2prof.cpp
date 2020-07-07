@@ -7,30 +7,19 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-// #include <api/BamMultiReader.h>
-// #include <api/BamReader.h>
-// #include <api/BamWriter.h>
-// #include <api/BamAux.h>
-// #include <api/SamSequenceDictionary.h>
-// #include <sys/mman.h>
-
 #include <sys/types.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "utils.h"
-//#include "ReconsReferenceBAM.h"
+
 extern "C" {
-    //#include "tabix.h"
-    //#include "bam.h"
 #include "htslib/sam.h"
 #include "htslib/bgzf.h"
 #include "bam.h"
-
 #include "samtools.h"
 #include "sam_opts.h"
 #include "bedidx.h"
-
 }
 #include "ReconsReferenceHTSLIB.h"
 
@@ -48,7 +37,7 @@ extern "C" {
 #define bam_mqual(b)          ((b)->core.qual)
 
 using namespace std;
-// using namespace BamTools;
+
 
 const int offset=0;
 int numberOfCycles;
@@ -57,9 +46,34 @@ string alphabetHTSLIB = "NACNGNNNTNNNNNNN";
 #define MAXLENGTH 1000
 
 
-#define MAX2(a,b) (((a)>(b))?(a):(b))
+//A=0,C=1,G=2,T=3
+char refToChar[256] = {
+    0,1,2,3,4,4,4,4,4,4,4,4,4,4,4,4,//15
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//31
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//47
+    0,1,2,3,4,4,4,4,4,4,4,4,4,4,4,4,//63
+    4,0,4,1,4,4,4,2,4,4,4,4,4,4,4,4,//79
+    4,4,4,4,3,4,4,4,4,4,4,4,4,4,4,4,//95
+    4,0,4,1,4,4,4,2,4,4,4,4,4,4,4,4,//111
+    4,4,4,4,3,4,4,4,4,4,4,4,4,4,4,4,//127
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//143
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//159
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//175
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//191
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//207
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//223
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//239
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4//255
+};
 
-
+char toIndex[4][4]={
+  {0,1,2,3},
+  {4,5,6,7},
+  {8,9,10,11},
+  {12,13,14,15}
+};
+//a->t,c->g,g->c,t->a
+char com[4] = {3,2,1,0};
 
 
 
