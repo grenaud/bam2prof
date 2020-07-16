@@ -7,30 +7,19 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-// #include <api/BamMultiReader.h>
-// #include <api/BamReader.h>
-// #include <api/BamWriter.h>
-// #include <api/BamAux.h>
-// #include <api/SamSequenceDictionary.h>
-// #include <sys/mman.h>
-
 #include <sys/types.h>
 
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "utils.h"
-//#include "ReconsReferenceBAM.h"
+
 extern "C" {
-    //#include "tabix.h"
-    //#include "bam.h"
 #include "htslib/sam.h"
 #include "htslib/bgzf.h"
 #include "bam.h"
-
 #include "samtools.h"
 #include "sam_opts.h"
 #include "bedidx.h"
-
 }
 #include "ReconsReferenceHTSLIB.h"
 
@@ -48,7 +37,7 @@ extern "C" {
 #define bam_mqual(b)          ((b)->core.qual)
 
 using namespace std;
-// using namespace BamTools;
+
 
 const int offset=0;
 int numberOfCycles;
@@ -57,9 +46,34 @@ string alphabetHTSLIB = "NACNGNNNTNNNNNNN";
 #define MAXLENGTH 1000
 
 
-#define MAX2(a,b) (((a)>(b))?(a):(b))
+//A=0,C=1,G=2,T=3
+char refToChar[256] = {
+    0,1,2,3,4,4,4,4,4,4,4,4,4,4,4,4,//15
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//31
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//47
+    0,1,2,3,4,4,4,4,4,4,4,4,4,4,4,4,//63
+    4,0,4,1,4,4,4,2,4,4,4,4,4,4,4,4,//79
+    4,4,4,4,3,4,4,4,4,4,4,4,4,4,4,4,//95
+    4,0,4,1,4,4,4,2,4,4,4,4,4,4,4,4,//111
+    4,4,4,4,3,4,4,4,4,4,4,4,4,4,4,4,//127
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//143
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//159
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//175
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//191
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//207
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//223
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,//239
+    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4//255
+};
 
-
+char toIndex[4][4]={
+  {0,1,2,3},
+  {4,5,6,7},
+  {8,9,10,11},
+  {12,13,14,15}
+};
+//a->t,c->g,g->c,t->a
+char com[4] = {3,2,1,0};
 
 
 
@@ -211,7 +225,7 @@ vector< vector<unsigned int> > typesOfDimer3pSingle; //3' deam rates when the 5'
 
 
 //increases the counters mismatches and typesOfMismatches of a given BamAlignment object
-inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta, const bam_hdr_t *h,void *bed,bool mask,bool ispaired,bool isfirstpair){ // ,int firstCycleRead,int increment
+inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,const vector<int> &  reconstructedReferencePos,const int & minQualBase,const string & refFromFasta, const bam_hdr_t *h,void *bed,bool mask,bool ispaired,bool isfirstpair){ // ,int firstCycleRead,int increment
 
     char refeBase;
     char readBase;
@@ -255,17 +269,16 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
     if(refeBase == 'M'){//match
 	refeBase =  readBase;
     }
-
-    if( isResolvedDNA(refeBase)  && 
-	isResolvedDNA(readBase) ){
+    refeBase = refToChar[refeBase];
+    readBase = refToChar[readBase];
+    if( refeBase!=4  && readBase!=4 ){
 	// if(al.IsReverseStrand()){ //need to take the complement
 	if( bam_is_reverse(b) ){
-	    refeBase=complement(refeBase);
-	    readBase=complement(readBase);
+	    refeBase=com[refeBase];
+	    readBase=com[readBase];
 	}
 	
-	if(refeBase == 'C' &&
-	   readBase == 'T' ){ //C->T
+	if(refeBase == 1 && readBase == 3 ){ //C->T
 
 	    //if(al.IsReverseStrand()){ //3'
 	    if( bam_is_reverse(b) ){
@@ -277,8 +290,7 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 	}
 
 
-	if(refeBase == 'G' &&
-	   readBase == 'A' ){ //G->A
+	if(refeBase == 2 && readBase == 0 ){ //G->A
 
 	    //if(al.IsReverseStrand()){ //3'
 	    if( bam_is_reverse(b) ){
@@ -313,17 +325,17 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
     if(refeBase == 'M'){//match
 	refeBase =  readBase;
     }
-
-    if( isResolvedDNA(refeBase)  && 
-	isResolvedDNA(readBase) ){
+    refeBase = refToChar[refeBase];
+    readBase = refToChar[readBase];
+    if( refeBase!=4  && readBase!=4 ){
 	//if(al.IsReverseStrand()){ //need to take the complement
 	if( bam_is_reverse(b) ){
-	    refeBase=complement(refeBase);
-	    readBase=complement(readBase);
+	    refeBase=com[refeBase];
+	    readBase=com[readBase];
 	}
 	
-	if(refeBase == 'C' &&
-	   readBase == 'T' ){ //C->T
+	if(refeBase == 1 &&
+	   readBase == 3 ){ //C->T
 
 	    // if(al.IsReverseStrand()){ //5'
 	    if( bam_is_reverse(b) ){
@@ -335,8 +347,8 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 	    }
 	}
 
-	if(refeBase == 'G' &&
-	   readBase == 'A' ){ //G->A
+	if(refeBase == 2 &&
+	   readBase == 0 ){ //G->A
 
 	    // if(al.IsReverseStrand()){ //5'
 	    if( bam_is_reverse(b) ){
@@ -429,17 +441,17 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 	}
 
 	// cout<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<endl;
-	
-	if( isResolvedDNA(refeBase)  && 
-	    isResolvedDNA(readBase) ){
+	refeBase = refToChar[refeBase];
+	readBase = refToChar[readBase];
+	if( refeBase!=4  && readBase!=4 ){
 	    int dist5p=i;
 	    //int dist3p=int(al.QueryBases.size())-1-i;
 	    int dist3p=b->core.l_qseq-1-i;
 	    
 	    //  if(al.IsReverseStrand()){ //need to take the complement
 	    if( bam_is_reverse(b) ){
-		refeBase=complement(refeBase);
-		readBase=complement(readBase);
+		refeBase=com[refeBase];
+		readBase=com[readBase];
 		//dist5p=int(al.QueryBases.size())-1-i;
 		dist5p=int(b->core.l_qseq)-1-i;
 		dist3p=i;
@@ -455,12 +467,12 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 	    //mismatches[cycleToUse]++;
 	    if( !ispaired ||  isfirstpair){
 		//cerr<<"increase 5p"<<endl;
-		typesOfDimer5p[dist5p][twoBases2index(refeBase,readBase)]++;
+		typesOfDimer5p[dist5p][toIndex[refeBase][readBase]]++;
 	    }
 
 	    if( !ispaired || !isfirstpair){
 		//cerr<<"increase 3p"<<endl;
-		typesOfDimer3p[dist3p][twoBases2index(refeBase,readBase)]++;
+		typesOfDimer3p[dist3p][toIndex[refeBase][readBase]]++;
 	    }
 	    
 	    if(!refFromFasta.empty()){
@@ -471,9 +483,9 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 		){
 		    //cout<<"   CPG: "<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<" ref:"<<refeBase<<" read:"<<readBase<<" "<<al.IsReverseStrand()<<" same="<<(refeBase==readBase)<<endl;
 		    if( !ispaired ||  isfirstpair)
-			typesOfDimer5p_cpg[dist5p][twoBases2index(refeBase,readBase)]++;
+			typesOfDimer5p_cpg[dist5p][toIndex[refeBase][readBase]]++;
 		    if( !ispaired || !isfirstpair)
-			typesOfDimer3p_cpg[dist3p][twoBases2index(refeBase,readBase)]++;
+			typesOfDimer3p_cpg[dist3p][toIndex[refeBase][readBase]]++;
 
 		}else{
 		    if( isResolvedDNA(refBaseFromFasta)                               &&
@@ -485,9 +497,9 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 
 		       //cout<<"nonCPG: "<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<" ref:"<<refeBase<<" read:"<<readBase<<" "<<al.IsReverseStrand()<<" same="<<(refeBase==readBase)<<endl;
 			if( !ispaired ||  isfirstpair)
-			    typesOfDimer5p_noncpg[dist5p][twoBases2index(refeBase,readBase)]++;
+			    typesOfDimer5p_noncpg[dist5p][toIndex[refeBase][readBase]]++;
 			if( !ispaired || !isfirstpair)
-			    typesOfDimer3p_noncpg[dist3p][twoBases2index(refeBase,readBase)]++;
+			    typesOfDimer3p_noncpg[dist3p][toIndex[refeBase][readBase]]++;
 			
 		    }
 		}
@@ -495,23 +507,23 @@ inline void increaseCounters(const   bam1_t  * b,string & reconstructedReference
 
 	    if(isDeam5pS){
 		if( !ispaired || !isfirstpair)
-		    typesOfDimer3pSingle[dist3p][twoBases2index(refeBase,readBase)]++;
+		    typesOfDimer3pSingle[dist3p][toIndex[refeBase][readBase]]++;
 	    }
 
 	    if(isDeam3pS){
 		if( !ispaired ||  isfirstpair)
-		    typesOfDimer5pSingle[dist5p][twoBases2index(refeBase,readBase)]++;
+		    typesOfDimer5pSingle[dist5p][toIndex[refeBase][readBase]]++;
 	    }
 
 
 	    if(isDeam5pD){
 		if( !ispaired || !isfirstpair)
-		    typesOfDimer3pDouble[dist3p][twoBases2index(refeBase,readBase)]++;
+		    typesOfDimer3pDouble[dist3p][toIndex[refeBase][readBase]]++;
 	    }
 
 	    if(isDeam3pD){
 		if( !ispaired ||  isfirstpair)
-		    typesOfDimer5pDouble[dist5p][twoBases2index(refeBase,readBase)]++;
+		    typesOfDimer5pDouble[dist5p][toIndex[refeBase][readBase]]++;
 	    }
 
 
@@ -832,6 +844,10 @@ int main (int argc, char *argv[]) {
         return 1;
     }
     b = bam_init1();
+    pair< kstring_t *, vector<int> >  reconstructedReference;
+    reconstructedReference.first =(kstring_t *) calloc(sizeof(kstring_t),1);
+    reconstructedReference.first->s =0 ;
+    reconstructedReference.first->l =    reconstructedReference.first->m =0;
     while(sam_read1(fp, h, b) >= 0){
 	if(bam_is_unmapped(b) ){
 	    if(!quiet)
@@ -867,7 +883,7 @@ int main (int argc, char *argv[]) {
 	// #define bam_mqual(b)        ((b)->core.qual)
 
 	
-	pair< string, vector<int> >  reconstructedReference = reconstructRefWithPosHTS(b);
+	reconstructRefWithPosHTS(b,reconstructedReference);
 	if(genomeFileB){
 	    //string ch = refData[al.RefID].RefName;
 	    string ch = h->target_name[b->core.tid];
@@ -881,9 +897,9 @@ int main (int argc, char *argv[]) {
 	    faidx1_t & findx=genome->name2index[ch];
 	
 	
-	    unsigned int lengthToExtract = reconstructedReference.first.size();
-	    for(int i=0;i<int(reconstructedReference.first.size());i++){
-		if(reconstructedReference.first[i] == 'I')
+	    unsigned int lengthToExtract = reconstructedReference.first->l;
+	    for(int i=0;i<int(reconstructedReference.first->l);i++){
+		if(reconstructedReference.first->s[i] == 'I')
 		    lengthToExtract--;		
 	    }
 	    //int startPos = al.Position;
@@ -897,8 +913,8 @@ int main (int argc, char *argv[]) {
 	    refFromFasta = "";
 	    refFromFasta=refFromFasta_[0];
 	    int j=1;
-	    for(int i=0;i<int(reconstructedReference.first.size());i++){		
-		if(reconstructedReference.first[i] == 'I'){
+	    for(int i=0;i<reconstructedReference.first->l;i++){		
+		if(reconstructedReference.first->s[i] == 'I'){
 		    refFromFasta+="I";
 		}else{
 		    refFromFasta+=refFromFasta_[j++];
@@ -907,113 +923,12 @@ int main (int argc, char *argv[]) {
 	    refFromFasta+=refFromFasta_[ refFromFasta_.size() -1 ];
 	}
 	
-	increaseCounters(b,reconstructedReference.first, reconstructedReference.second,minQualBase,refFromFasta,h,bed,mask,ispaired,isfirstpair); //start cycle numberOfCycles-1
+	increaseCounters(b,reconstructedReference.first->s, reconstructedReference.second,minQualBase,refFromFasta,h,bed,mask,ispaired,isfirstpair); //start cycle numberOfCycles-1
     }
     
     bam_destroy1(b);
     sam_close(fp);
     
-    
-    /*
-      BamReader reader;
-    
-      if ( !reader.Open(bamfiletopen) ) {
-      cerr << "Could not open input BAM file"<< bamfiletopen << endl;
-      return 1;
-      }
-
-
-      vector<RefData>  refData=reader.GetReferenceData();
-    
-
-
-
-
-
-    //iterating over the alignments for these regions
-    BamAlignment al;
-    // bool pairedEnd=false;
-    // bool firstRead=true;
-    
-    while ( reader.GetNextAlignment(al) ) {
-	
-    	//cout<<"Read "<<al.Name<<" is wrong, cannot have a mixture of paired and unpaired read for this program"<<endl;
-	if( al.IsPaired()  ){
-	// cerr<<"Read "<<al.Name<<" is wrong, cannot have a mixture of paired and unpaired read for this program"<<endl;
-	// return 1;
-	continue;
-	}
-	
-	//skip unmapped
-	if(!al.IsMapped()){
-	continue;
-	}
-	
-	//string reconstructedReference = reconstructRef(&al);
-	pair< string, vector<int> >  reconstructedReference = reconstructRefWithPosOnRead(&al);
-	
-	if(genomeFileB){
-	string ch = refData[al.RefID].RefName;
-	
-	if(genome->name2index.find(ch) == genome->name2index.end()){
-	cerr<<"Cannot find chr "<<ch<<endl;
-	}else{
-	//cout<<"found"<<endl;
-	}
-	faidx1_t & findx=genome->name2index[ch];
-	
-	
-	unsigned int lengthToExtract = reconstructedReference.first.size();
-	for(int i=0;i<int(reconstructedReference.first.size());i++){
-	if(reconstructedReference.first[i] == 'I')
-	lengthToExtract--;		
-	}
-	int startPos = al.Position;
-	if(startPos!=0)
-	startPos--;
-	else
-	continue;
-	
-	refFromFasta_ = genome->returnStringCoord(&findx,startPos,(lengthToExtract+2));
-	refFromFasta = "";
-	refFromFasta=refFromFasta_[0];
-	int j=1;
-	for(int i=0;i<int(reconstructedReference.first.size());i++){		
-	if(reconstructedReference.first[i] == 'I'){
-	refFromFasta+="I";
-	}else{
-	refFromFasta+=refFromFasta_[j++];
-	}
-	}
-	refFromFasta+=refFromFasta_[ refFromFasta_.size() -1 ];
-	// cout<<"1  "<<al.QueryBases<<endl;
-	// cout<<"2 "<<refFromFasta<<endl;
-	// cout<<"3  "<<reconstructedReference.first<<" "<<reconstructedReference.first.size()<<endl;
-	// //cout<<"4  "<<vectorToString(reconstructedReference.second)<<" "<<reconstructedReference.second.size()<<endl;    
-	// cout<<endl;
-	
-	// //st,en-st+1-sizeProbes,sizeProbes,tiling,tosend,maxVarInProbe);
-	
-	}
-	// if(al.Qualities.size() != reconstructedReference.first.size()){
-	//     cerr<<"Quality line is not the same size as the reconstructed reference"<<endl;
-	//     return 1;
-	// }
-	
-	
-
-	
-	increaseCounters(al,reconstructedReference.first, reconstructedReference.second,minQualBase,refFromFasta); //start cycle numberOfCycles-1
-	
-	
-	
-      
-	}//end while  each read
-	
-
-
-	reader.Close();
-    */      
     ofstream file5pFP;
     file5pFP.open(file5p.c_str());
 
