@@ -1,0 +1,6 @@
+language: C++
+
+script: cd src && make && cd ..  && cd test/ && bash test.sh && cd ..
+
+
+
