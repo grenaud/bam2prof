@@ -1,4 +1,4 @@
 # bam2prof
 
 
-typing "make" should built everything.
+typing "cd src && make" should built everything.

@@ -28,7 +28,7 @@ void  mdString2Vector(const char * mdFieldToParse,vector<mdField> &toReturn){
     toadd.offset=0;
     toadd.bp='N';
 
-    while(strlen(mdFieldToParse) != i){//tsk compiler warning
+    while(int(strlen(mdFieldToParse)) != i){//tsk compiler warning
 	if(isdigit(mdFieldToParse[i])){
 	    toadd.offset=toadd.offset*10+(int(mdFieldToParse[i])-asciiOffsetZero);
 	}else{
@@ -73,11 +73,12 @@ void  mdString2Vector(const char * mdFieldToParse,vector<mdField> &toReturn){
  *
   \return A pair with the string representation of the reference and the vector of the positions on the ref
 */
-static char *reconstructedTemp=(char*)calloc(256,1);
+static int maxlength=1024;
+static char *reconstructedTemp=(char*)calloc(maxlength,1);
 void  reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int> > &smart){
   smart.first->l = 0; 
   smart.second.clear();
-  memset(reconstructedTemp,0,256);
+  memset(reconstructedTemp,0,maxlength);
   
   static vector<mdField> parsedMD;
     //initialize
@@ -114,7 +115,7 @@ void  reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int>
     int at =0;
     for(int32_t i = 0; i < n_cigar_op; i++){
 	char opchr = bam_cigar_opchr(cigar[i]);
-        int32_t oplen = bam_cigar_oplen(cigar[i]);
+        int32_t oplen = bam_cigar_oplen(cigar[i]);	
 	memset(reconstructedTemp+at,opchr,oplen);
 	at += oplen;
     }
@@ -179,7 +180,7 @@ void  reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int>
 	}
     }
 
-    if(smart.first->l != b->core.l_qseq){
+    if(int(smart.first->l) != b->core.l_qseq){
 	cerr << "Could not recreate the sequence for read "<<bam_get_qname(b)  << endl;
 	exit(1);
     }

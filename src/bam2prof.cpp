@@ -898,7 +898,7 @@ int main (int argc, char *argv[]) {
 	
 	
 	    unsigned int lengthToExtract = reconstructedReference.first->l;
-	    for(int i=0;i<int(reconstructedReference.first->l);i++){
+	    for(unsigned int i=0;i<reconstructedReference.first->l;i++){
 		if(reconstructedReference.first->s[i] == 'I')
 		    lengthToExtract--;		
 	    }
@@ -913,7 +913,7 @@ int main (int argc, char *argv[]) {
 	    refFromFasta = "";
 	    refFromFasta=refFromFasta_[0];
 	    int j=1;
-	    for(int i=0;i<reconstructedReference.first->l;i++){		
+	    for(unsigned int i=0;i<reconstructedReference.first->l;i++){		
 		if(reconstructedReference.first->s[i] == 'I'){
 		    refFromFasta+="I";
 		}else{
@@ -1223,10 +1223,11 @@ int main (int argc, char *argv[]) {
     }
 
 
-
+    //cerr<<"TEST1"<<endl;
     file3pFP.close();
+    ///cerr<<"TEST2"<<endl;
     if (bed) bed_destroy(bed);
-
+    //cerr<<"TEST3"<<endl;
     return 0;
 }
 

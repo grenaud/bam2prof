@@ -1,5 +1,5 @@
 
-CXX      = g++ -std=c++11 #-g #-pg #-fpermissive #-g # -pg
+CXX      = g++ -std=c++11 #-g -pg #-fpermissive #-g # -pg
 LIBGAB   = ../lib/libgab/
 
 CXXFLAGS = -Wall -Wno-char-subscripts -lm -O3 -lz -I../lib/libgab/ -I../lib/libgab//gzstream/ -I../lib/samtools/ -I../lib/htslib/    -c
@@ -17,7 +17,6 @@ bam2prof:	bam2prof.o  ReconsReferenceHTSLIB.o ../lib/libgab/utils.o   ../lib/lib
 
 diffprof:	diffprof.o  ReconsReferenceHTSLIB.o ../lib/libgab/utils.o   ../lib/libgab/gzstream/libgzstream.a
 	${CXX} -o $@ $^ $(LDLIBS) $(LDFLAGS)
-
 
 ../lib/htslib/libhts.a:  ../lib/htslib/hts_internal.h
 	cd ../lib/htslib/ && make && cd ../..
