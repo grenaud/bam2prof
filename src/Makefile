@@ -19,7 +19,7 @@ diffprof:	diffprof.o  ReconsReferenceHTSLIB.o ../lib/libgab/libgab.a   ../lib/li
 	${CXX} -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 ../lib/htslib/libhts.a:  ../lib/htslib/hts_internal.h
-	cd ../lib/htslib/ && git submodule update --init --recursive && make && cd ../..
+	cd ../lib/htslib/ && git submodule update --init --recursive && make libhts.a && cd ../..
 
 ../lib/htslib/hts_internal.h:
 	rm -rfv ../lib/htslib/
