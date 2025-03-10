@@ -65,6 +65,6 @@ For more detailed information and updates, visit the bam2prof GitHub repository 
 
 # Developers 
 
--- Gabriel Renaud
--- Louis Kraft
--- Thorfinn Korneliussen
+- Gabriel Renaud
+- Louis Kraft
+- Thorfinn Korneliussen
