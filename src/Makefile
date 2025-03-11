@@ -3,16 +3,16 @@ CXX      = g++ -std=c++11 #-g -pg #-fpermissive #-g # -pg
 LIBGAB   = ../lib/libgab/
 
 CXXFLAGS = -Wall -Wno-char-subscripts -lm -O3 -lz -I../lib/libgab/ -I../lib/libgab//gzstream/ -I../lib/samtools/ -I../lib/htslib/    -c
-LDFLAGS  = -lgsl -lcurl -lgslcblas -llzma -lbz2 -lz  -lpthread 
+LDFLAGS  = -lgsl -lcurl -lgslcblas -llzma -lbz2 -lz  -lpthread
 LDLIBS   = ../lib/samtools/bedidx.o ../lib/htslib/libhts.a ../lib/samtools/libst.a ../lib/samtools/libst.a 
-
 
 all:  ../lib/libgab/libgab.a  ../lib/htslib/libhts.a ../lib/samtools/bedidx.o bam2prof diffprof #testComp testCompCont
 
 %.o: %.cpp #../lib/libgab/libgab.a  
 	${CXX} ${CXXFLAGS} $^ -o $@
 
-bam2prof:	bam2prof.o  ReconsReferenceHTSLIB.o ../lib/libgab/libgab.a   ../lib/libgab/gzstream/libgzstream.a
+# Rule to build bam2prof executable
+bam2prof:	bam2prof.o  ReconsReferenceHTSLIB.o utilityFunctions.o ../lib/libgab/libgab.a ../lib/libgab/gzstream/libgzstream.a
 	${CXX} -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
 diffprof:	diffprof.o  ReconsReferenceHTSLIB.o ../lib/libgab/libgab.a   ../lib/libgab/gzstream/libgzstream.a
@@ -43,5 +43,3 @@ diffprof:	diffprof.o  ReconsReferenceHTSLIB.o ../lib/libgab/libgab.a   ../lib/li
 
 clean :
 	rm -f *.o bam2prof diffprof
-
-
