@@ -106,3 +106,27 @@ else
     echo -e " ${RED}test failed${NC}"
     exit 1
 fi
+
+echo -n "Testing indels:"
+
+../src/bam2prof -minq 11 indel.bam >  indel.out
+
+if diff indel.out indel.out_ > /dev/null
+then
+    echo -e " ${GREEN}test passed${NC}"
+else
+    echo -e " ${RED}test failed${NC}"
+    exit 1
+fi
+
+echo -n "Testing softclips:"
+
+../src/bam2prof -minq 11 softclip.bam >  softclip.out
+
+if diff softclip.out softclip.out_ > /dev/null
+then
+    echo -e " ${GREEN}test passed${NC}"
+else
+    echo -e " ${RED}test failed${NC}"
+    exit 1
+fi

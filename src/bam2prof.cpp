@@ -1,3 +1,5 @@
+//#define DEBUGITERATELOOP
+
 #include <iostream>
 #include <vector>
 #include <cstring>
@@ -254,6 +256,8 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
     bool isDeam5pD=false; //C->T 5'
     bool isDeam3pD=false; //G->A 3'
 
+
+    // This portion of the code checks if there is damage on the 5' end for the conditioning (i.e what is the damage rate on the 3' end if the 5' has damage) 
     int i;
     //cerr<<"read  "<<bam_get_qname(b)<<endl;
     if(ispaired){ //since we cannot evaluate the 5' ends or 3' ends
@@ -315,6 +319,8 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
     }
 
 
+
+    // This portion of the code checks if there is damage on the 3' end for the conditioning (i.e what is the damage rate on the 5' end if the 3' has damage) 
  eval3pdeam:
     //i=int(al.QueryBases.size())-1; //3p for forward str, 5p for reverse
     i=b->core.l_qseq-1;
@@ -381,40 +387,56 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
     char refBaseFromFasta      = 'N';
     char refBaseFromFastaPrev  = 'N';
     char refBaseFromFastaNext  = 'N';
-    int j=0;
+    int j=0;//i is the counter for the query, j for the reference
+
+#ifdef DEBUGITERATELOOP
+    cout<<"iterateLoop  reconstructedReference="<<reconstructedReference<<endl;
+    //cout<<"iterateLoop                   query="<<queryToPrint<<endl;
+    
+#endif
+
+
     //for(i=0;i<int(al.QueryBases.size());i++,j++){
+
+    //iterates over each base of the query
     for(i=0;i<int(b->core.l_qseq);i++,j++){
 	// cout<<i<<endl;
 	//cerr<<"bed5 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<" "<<i<<endl;
+	//if we specified a bed file and it does not overlap the coordinates (or overlaps the mask), continue 
 	if(bed && bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[j], reconstructedReferencePos[j] + 1) == int(mask)) 	continue;
 	//cerr<<"bed6 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<" "<<i<<endl;
 
+
+	//this is the reconstructed reference this far it is just a bunch of Ms (match/mismatch), Ss (soft clips), I for insertions, D for deletions
 	refeBase=toupper(reconstructedReference[j]);
 
 	// readBase=toupper(          al.QueryBases[i]);
 	// qualBase=int(              al.Qualities[i])-offset;
 
-	readBase=toupper( alphabetHTSLIB[ bam_seqi(bam_get_seq(b),i) ] ); //b->core.l_qseq[i]);
-	qualBase=int(             bam_get_qual(b)[i])-offset;  
+	readBase=toupper( alphabetHTSLIB[ bam_seqi(bam_get_seq(b), i) ] ); //b->core.l_qseq[i]);
+	qualBase=int(                              bam_get_qual(b)[i])-offset;  
   
 	//cout<<i<<"\t"<<qualBase<<"\t"<<minQualBase<<endl;
 	//cout<<"-"<<i<<"\t"<<qualBase<<"\t"<<minQualBase<<endl;
-	//cout<<"i="<<i<<" j="<<j<<" "<< refeBase<<" "<<readBase<<" "<<refFromFasta[j+1]<<endl;
+#ifdef DEBUGITERATELOOP
+	cout<<"1i="<<i<<" j="<<j<<" refeBase="<< refeBase<<" readBase="<<readBase<<" refFromFasta="<<refFromFasta[j+1]<<endl;
+#endif
+	
 	//cerr<<"readBase "<<readBase<<" refeBase "<<refeBase<<endl;
-	if( refeBase == 'S'){ //don't care about soft clipped or indels	    
-	    j--;
+	if( refeBase == 'S'){ //do not care about soft clipped or indels	    
+	    //j--;
 	    continue;
 	}
 
 
 	
-	if( refeBase == 'I'){ //don't care about soft clipped or indels
+	if( refeBase == 'I'){ //do not care about insertion to the reference, we cannot match them
 	  //i--;
 	  continue;
 	}
 
 
-	if(refeBase == 'D'){//deletion
+	if(refeBase == 'D'){//deletion from the reference
 	    //j++;
 	    i--;
 	    continue;
@@ -453,9 +475,17 @@ inline void increaseCounters(const   bam1_t  * b,char *reconstructedReference,co
 
 	}
 
+
+
+	
 	// cout<<refBaseFromFastaPrev<<" "<<refBaseFromFasta<<" "<<refBaseFromFastaNext<<endl;
 	refeBase = refToChar[refeBase];
 	readBase = refToChar[readBase];
+
+#ifdef DEBUGITERATELOOP
+	cout<<"2i="<<i<<" j="<<j<<" refeBase="<< int(refeBase)<<" readBase="<<int(readBase)<<" refFromFasta="<<refFromFasta[j+1]<<endl;
+#endif
+
 	if( refeBase!=4  && readBase!=4 ){
 	    int dist5p=i;
 	    //int dist3p=int(al.QueryBases.size())-1-i;
