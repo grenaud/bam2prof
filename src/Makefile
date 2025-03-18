@@ -6,7 +6,7 @@ CXXFLAGS = -Wall -Wno-char-subscripts -lm -O3 -lz -I../lib/libgab/ -I../lib/libg
 LDFLAGS  = -lgsl -lcurl -lgslcblas -llzma -lbz2 -lz  -lpthread
 LDLIBS   = ../lib/samtools/bedidx.o ../lib/htslib/libhts.a ../lib/samtools/libst.a ../lib/samtools/libst.a 
 
-all:  ../lib/libgab/libgab.a  ../lib/htslib/libhts.a ../lib/samtools/bedidx.o bam2prof diffprof #testComp testCompCont
+all:  ../lib/libgab/libgab.a  ../lib/htslib/libhts.a ../lib/samtools/libst.a bam2prof diffprof #testComp testCompCont
 
 %.o: %.cpp #../lib/libgab/libgab.a  
 	${CXX} ${CXXFLAGS} $^ -o $@
@@ -25,10 +25,10 @@ diffprof:	diffprof.o  ReconsReferenceHTSLIB.o ../lib/libgab/libgab.a   ../lib/li
 	rm -rfv ../lib/htslib/
 	git clone --recursive https://github.com/samtools/htslib.git ../lib/htslib/
 
-../lib/samtools/bedidx.o:  ../lib/samtools/sam.h
+../lib/samtools/libst.a:  ../lib/samtools/samtools.h
 	cd ../lib/samtools/ && make && cd ../..
 
-../lib/samtools/sam.h:
+../lib/samtools/samtools.h:
 	rm -rf ../lib/samtools/
 	git clone --recursive https://github.com/samtools/samtools.git ../lib/samtools/
 

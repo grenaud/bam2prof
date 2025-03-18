@@ -208,19 +208,16 @@ inline void increaseCounters(const bam1_t  * b, char *reconstructedReference, co
         //cout<<"i="<<i<<" j="<<j<<" "<< refeBase<<" "<<readBase<<" "<<refFromFasta[j+1]<<endl;
         //cerr<<"readBase "<<readBase<<" refeBase "<<refeBase<<endl;
         if( refeBase == 'S'){ //don't care about soft clipped or indels	    
-            j--;
+            // j--;
             continue;
         }
-
-
         
-        if( refeBase == 'I'){ //don't care about soft clipped or indels
+        if( refeBase == 'I'){ //do not care about insertion to the reference, we cannot match them
         //i--;
         continue;
         }
 
-
-        if(refeBase == 'D'){//deletion
+        if(refeBase == 'D'){//deletion from the reference
             //j++;
             i--;
             continue;
@@ -242,8 +239,6 @@ inline void increaseCounters(const bam1_t  * b, char *reconstructedReference, co
             }
 
             }
-            
-        
             
         }else{
             if(!refFromFasta.empty()){
