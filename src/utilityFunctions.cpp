@@ -59,6 +59,7 @@ inline void increaseCounters(const bam1_t  * b, char *reconstructedReference, co
     bool isDeam5pD=false; //C->T 5'
     bool isDeam3pD=false; //G->A 3'
 
+    // This portion of the code checks if there is damage on the 5' end for the conditioning (i.e what is the damage rate on the 3' end if the 5' has damage) 
     int i;
     //cerr<<"read  "<<bam_get_qname(b)<<endl;
     if(ispaired){ //since we cannot evaluate the 5' ends or 3' ends
@@ -121,7 +122,7 @@ inline void increaseCounters(const bam1_t  * b, char *reconstructedReference, co
 	   
     }
 
-
+// This portion of the code checks if there is damage on the 3' end for the conditioning (i.e what is the damage rate on the 5' end if the 3' has damage) 
  eval3pdeam:
     //i=int(al.QueryBases.size())-1; //3p for forward str, 5p for reverse
     i=b->core.l_qseq-1;
@@ -187,14 +188,18 @@ inline void increaseCounters(const bam1_t  * b, char *reconstructedReference, co
     char refBaseFromFasta      = 'N';
     char refBaseFromFastaPrev  = 'N';
     char refBaseFromFastaNext  = 'N';
-    int j=0;
+    int j=0; //i is the counter for the query, j for the reference
     //for(i=0;i<int(al.QueryBases.size());i++,j++){
+
+    //iterates over each base of the query
     for(i=0;i<int(b->core.l_qseq);i++,j++){
         // cout<<i<<endl;
         //cerr<<"bed5 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<" "<<i<<endl;
+        //if we specified a bed file and it does not overlap the coordinates (or overlaps the mask), continue 
         if(bed && bed_overlap(bed, h->target_name[b->core.tid], reconstructedReferencePos[j], reconstructedReferencePos[j] + 1) == int(mask)) 	continue;
         //cerr<<"bed6 "<<bed<<" "<<bam_get_qname(b)<<" "<<h->target_name[b->core.tid]<<" "<<reconstructedReferencePos[i]<<" "<<(reconstructedReferencePos[i] + 1)<<" "<<i<<endl;
 
+        //this is the reconstructed reference this far it is just a bunch of Ms (match/mismatch), Ss (soft clips), I for insertions, D for deletions
         refeBase=toupper(reconstructedReference[j]);
 
         // readBase=toupper(          al.QueryBases[i]);
