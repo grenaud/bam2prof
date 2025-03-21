@@ -580,28 +580,38 @@ vector<vector<unsigned int>> initializeDimerVectors(int maxLength, int innerSize
 // }
 
 void generateDamageProfile( const std::string& outDir, const std::string& bamfiletopen, const std::string& refId, int lengthMaxToPrint, bool dpFormat, bool hFormat, bool allStr, bool singAnddoubleStr, bool doubleStr, bool singleStr, bool endo, bool genomeFileB, bool cpg, double errorToRemove, bool failsafe, bool phred, const std::vector<std::vector<unsigned int>>& typesOfDimer5pSingle, const std::vector<std::vector<unsigned int>>& typesOfDimer5pDouble, const std::vector<std::vector<unsigned int>>& typesOfDimer5p, const std::vector<std::vector<unsigned int>>& typesOfDimer5p_cpg, const std::vector<std::vector<unsigned int>>& typesOfDimer5p_noncpg, const std::vector<std::vector<unsigned int>>& typesOfDimer3pSingle, const std::vector<std::vector<unsigned int>>& typesOfDimer3pDouble, const std::vector<std::vector<unsigned int>>& typesOfDimer3p, const std::vector<std::vector<unsigned int>>& typesOfDimer3p_cpg, const std::vector<std::vector<unsigned int>>& typesOfDimer3p_noncpg, uint64_t mapped) {
+    
     std::string file5p, file3p;
-    std::string file5pDefault, file3pDefault;
     std::string mappedStr = std::to_string(mapped);
-
-
-    // Creating the output directory
-    if (outDir != "/dev/stdout") {
+    
+    // Extract file base from BAM path
+    std::string bamfiletopenBase = bamfiletopen.substr(bamfiletopen.find_last_of("/\\") + 1);
+    std::string::size_type const p(bamfiletopenBase.find_last_of('.'));
+    std::string file_base = bamfiletopenBase.substr(0, p);
+    
+    if (outDir == "/dev/stdout") {
+        file5p = "/dev/stdout";
+        file3p = "/dev/stdout";
+    } else {
         std::string command = "mkdir -p " + outDir;
         int result = system(command.c_str());
         if (result != 0) {
             std::cerr << "Failed to create output directory: " << outDir << std::endl;
         }
+    
+        file5p = outDir + "/" + file_base + "_" + refId + "_n" + mappedStr + "_5p.prof";
+        file3p = outDir + "/" + file_base + "_" + refId + "_n" + mappedStr + "_3p.prof";
     }
+    
 
-    // Retrieving the basename of the bam file
-    std::string bamfiletopenBase = bamfiletopen.substr(bamfiletopen.find_last_of("/\\") + 1);
-    std::string::size_type const p(bamfiletopenBase.find_last_of('.'));
-    std::string file_base = bamfiletopenBase.substr(0, p);
+    // // Retrieving the basename of the bam file
+    // std::string bamfiletopenBase = bamfiletopen.substr(bamfiletopen.find_last_of("/\\") + 1);
+    // std::string::size_type const p(bamfiletopenBase.find_last_of('.'));
+    // std::string file_base = bamfiletopenBase.substr(0, p);
 
-    // Set up file names
-    file5p = outDir + "/" + file_base + "_" + refId + "_n" + mappedStr + "_5p.prof";
-    file3p = outDir + "/" + file_base + "_" + refId + "_n" + mappedStr + "_3p.prof";
+    // // Set up file names
+    // file5p = outDir + "/" + file_base + "_" + refId + "_n" + mappedStr + "_5p.prof";
+    // file3p = outDir + "/" + file_base + "_" + refId + "_n" + mappedStr + "_3p.prof";
 
     // Open 5' file
     std::ofstream file5pFP(file5p.c_str());
@@ -641,12 +651,12 @@ void generateDamageProfile( const std::string& outDir, const std::string& bamfil
                 double ratio = MAX(0.0, returnRatioFS((*typesOfDimer5pToUse)[l][4 * n1 + n2], totalObs, errorToRemove, failsafe));
 
                 // Abort if any NaN is found
-                if (std::isnan(ratio)) {
-                    file5pFP.close();
-                    std::remove(file5p.c_str());
-                    std::remove(file3p.c_str());  // Ensure both files are deleted
-                    return;  // Stop execution immediately
-                }
+                // if (std::isnan(ratio)) {
+                //     file5pFP.close();
+                //     std::remove(file5p.c_str());
+                //     std::remove(file3p.c_str());  // Ensure both files are deleted
+                //     return;  // Stop execution immediately
+                // }
 
                 if (allStr || (singAnddoubleStr && ((n1 == 1 && n2 == 3) || (n1 == 2 && n2 == 0))) || 
                     (doubleStr && n1 == 1 && n2 == 3) || (singleStr && n1 == 1 && n2 == 3)) {
@@ -716,12 +726,12 @@ void generateDamageProfile( const std::string& outDir, const std::string& bamfil
                 double ratio = MAX(0.0, returnRatioFS((*typesOfDimer3pToUse)[l][4 * n1 + n2], totalObs, errorToRemove, failsafe));
 
                 // Abort if any NaN is found
-                if (std::isnan(ratio)) {
-                    file3pFP.close();
-                    std::remove(file5p.c_str());
-                    std::remove(file3p.c_str());  // Ensure both files are deleted
-                    return;  // Stop execution immediately
-                }
+                // if (std::isnan(ratio)) {
+                //     file3pFP.close();
+                //     std::remove(file5p.c_str());
+                //     std::remove(file3p.c_str());  // Ensure both files are deleted
+                //     return;  // Stop execution immediately
+                // }
                 
                 if (allStr || 
                     (singAnddoubleStr && ((n1 == 1 && n2 == 3) || (n1 == 2 && n2 == 0))) ||

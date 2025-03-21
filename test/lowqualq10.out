@@ -1,0 +1,12 @@
+A>C	A>G	A>T	C>A	C>G	C>T	G>A	G>C	G>T	T>A	T>C	T>G
+-nan	-nan	-nan	0	0	1	-nan	-nan	-nan	-nan	-nan	-nan
+-nan	-nan	-nan	-nan	-nan	-nan	-nan	-nan	-nan	0	0	0
+-nan	-nan	-nan	-nan	-nan	-nan	-nan	-nan	-nan	0	0	0
+-nan	-nan	-nan	0	0	0	-nan	-nan	-nan	-nan	-nan	-nan
+-nan	-nan	-nan	-nan	-nan	-nan	0	0	0	-nan	-nan	-nan
+A>C	A>G	A>T	C>A	C>G	C>T	G>A	G>C	G>T	T>A	T>C	T>G
+-nan	-nan	-nan	-nan	-nan	-nan	0	0	0	-nan	-nan	-nan
+0	0	0	-nan	-nan	-nan	-nan	-nan	-nan	-nan	-nan	-nan
+-nan	-nan	-nan	0	0	0	-nan	-nan	-nan	-nan	-nan	-nan
+-nan	-nan	-nan	0	0	0	-nan	-nan	-nan	-nan	-nan	-nan
+-nan	-nan	-nan	-nan	-nan	-nan	-nan	-nan	-nan	0	0	0

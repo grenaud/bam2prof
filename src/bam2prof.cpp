@@ -44,7 +44,7 @@ int main (int argc, char *argv[]) {
     bool failsafe=false;
 	bool metaMode=false;
     bool paired=false;
-    bool quiet=true;
+    bool quiet=false;
 	bool classicMode=false;
 	double precisionThresh=0.0;
 	//string refId;

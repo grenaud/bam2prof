@@ -1,0 +1,1 @@
+Testing no mutation: [0;31mtest failed[0m
