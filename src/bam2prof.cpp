@@ -14,6 +14,7 @@ int main (int argc, char *argv[]) {
     string file5pDefault="/dev/stdout";
     string file3pDefault="/dev/stdout";
 	string outDir="/dev/stdout";
+	string outDirUnsafe="/dev/stdout";
 	vector<string> refIdsList={};
 	vector<string> bamFiles={};
 
@@ -44,7 +45,7 @@ int main (int argc, char *argv[]) {
     bool failsafe=false;
 	bool metaMode=false;
     bool paired=false;
-    bool quiet=false;
+    bool quiet=true;
 	bool classicMode=false;
 	double precisionThresh=0.0;
 	//string refId;
@@ -72,10 +73,9 @@ int main (int argc, char *argv[]) {
 			"\t\t"+"-paired\t\t\tAllow paired reads    (Default: "+booleanAsString( paired )+" ) \n"+
 			"\t\t"+"-meta\t\t\tOne Profile for each unique reference    (Default: "+booleanAsString( metaMode )+" ) \n"+
 			"\t\t"+"-classic\t\tOne Profile per bam file    (Default: "+booleanAsString( classicMode )+" ) \n"+
-			"\t\t"+"-precision\t\tSet minimum precision for substitution frequency computation (Default: All alignments [= 0.0]; Speed up by setting precision to either 0.001, 0.0001, 0.00001, ... ) \n"+
+			"\t\t"+"-precision\t\tSet minimum precision for substitution frequency computation (Default: All alignments [= 0.0]; Speed up by setting precision to either 0.01, 0.001, ... ) \n"+
 			"\t\t"+"-minAligned\t\tNumber of aligned sequences after which substitution patterns are checked for converging (Default: "+stringify( numAlns )+")\n"+
-
-			"\t\t"+"-ref-id\t\t\tSpecify reference ID; if multiple references: Provide comma seperated list (no spaces!)    ( Default: Not Set ) \n"+
+			"\t\t"+"-ref-id\t\t\tSpecify reference ID; if multiple references: Provide comma seperated list (no spaces!) ( Default: Not Set ) \n"+
 
 			"\n\n\tYou can specify either one of the two:\n"+
 			"\t\t"+"-single\t\t\tUse the deamination profile of a single strand library  (Default: "+booleanAsString( singleStr )+")\n"+
@@ -340,6 +340,29 @@ int main (int argc, char *argv[]) {
 	cerr<<genomeFile<<" mapped into memory"<<endl;
     }
 
+	// Define the output path for the profiles that have not converged
+	if (!outDir.empty() && outDir.back() == '/'){
+		outDir.pop_back();
+	} 
+	
+	outDirUnsafe = outDir + "_notConverged";
+	string outDirSwap = outDir;
+
+    // Creating the output directory
+    if ( outDir != "/dev/stdout" ) {
+        std::string command = "mkdir -p " + outDir;
+        int result = system(command.c_str());
+        if (result != 0) {
+            std::cerr << "Failed to create output directories: " << outDir << std::endl;
+        }
+    }
+    if ( metaMode && outDir != "/dev/stdout") {
+        std::string command2 = "mkdir -p " + outDirUnsafe;
+        int result2 = system(command2.c_str());
+        if (result2 != 0) {
+            std::cerr << "Failed to create output directories: " << outDirUnsafe << std::endl;
+        }
+    }
 
 	// string bamfilelist = string( argv[ argc-1 ] );
     // stringstream ss(bamfilelist);
@@ -454,14 +477,18 @@ int main (int argc, char *argv[]) {
 	typesOfDimer5pSingleTmp = typesOfDimer5pSingleTmp;
 	typesOfDimer3pSingleTmp = typesOfDimer3pSingleTmp;
 
-
-
-
-
 	uint64_u totalMapped = 0;
+
+	bool stopEarly = false;
+	bool isConvergedOnce = false;
+
+	unsigned int numAlnsSafeRange = 100000;
+	unsigned int numAlnsSafe = 500;
+	float critThresh = 0.01;
 
 	// Iterate over each reference 
 	for (int i = 0; i < h->n_targets; i++) {
+
 		unsigned int processedAlns = 1;
 
 		//std::cerr << "iterating targets" << std::endl;
@@ -524,29 +551,24 @@ int main (int argc, char *argv[]) {
 		reconstructedReference.first->l =    reconstructedReference.first->m =0;
 
 
-        // long unsigned int mapped = 0;
-		// for (int map = 0; map < sam_hdr_nref(h); ++map) {
-        //     uint64_t u, v;
-        //     hts_idx_get_stat(idx, map, &u, &v);
-		// 	mapped += u;
-        // }
-		// std::cerr << "bamfiletopen\t" << bamfiletopen << std::endl;
-		// std::cerr << "refNameStr\t" << refNameStr << std::endl;
-		// std::cerr << "mapped\t" << mapped << std::endl;
-		// std::cerr << "unmapped\t" << unmapped << std::endl;
 		// Get the number of mapped reads for the current reference 'i'
 		uint64_t mapped = 0, unmapped = 0;
 		hts_idx_get_stat(idx, i, &mapped, &unmapped);
 		totalMapped += mapped;
-		// std::cerr << "bamfiletopen\t" << bamfiletopen << std::endl;
-		// std::cerr << "refNameStr\t" << refNameStr << std::endl;
-		// std::cerr << "mapped\t" << mapped << std::endl;
-		// std::cerr << "unmapped\t" << unmapped << std::endl;
 
+		bool isConvergedLow = false;  // Flag to indicate if all changes are small; Also tells us if converged at all or not
+
+		stopEarly = false; // for any mode but references where at least 10 Mio have aligned PER REFERENCE
 
 		// Iterate over the BAM records
 		while (sam_itr_next(fp, iter, b) >= 0) {
-			
+
+			if ( processedAlns >= 10000 ){
+				unsigned int numAlnsSafe = 1000;
+				float critThresh = 0.01;
+			}
+
+			bool critRange = (processedAlns <= numAlnsSafeRange);
 			if(bam_is_unmapped(b)){
 				if(!quiet)
 					cerr<<"skipping "<<bam_get_qname(b)<<" unmapped"<<endl;
@@ -577,24 +599,19 @@ int main (int argc, char *argv[]) {
 			countSubsPerRef(genomeFileB, genome, b, reconstructedReference, minQualBase, refFromFasta, refFromFasta_, h, bed, mask, ispaired, isfirstpair, typesOfDimer5p, typesOfDimer3p, typesOfDimer5p_cpg, typesOfDimer3p_cpg, typesOfDimer5p_noncpg, typesOfDimer3p_noncpg, typesOfDimer5pDouble, typesOfDimer3pDouble, typesOfDimer5pSingle, typesOfDimer3pSingle);
 
 
-			// bool getDamProf = true;
-			// if ( mapped <= 10000 ){
-			// 	numAlns = 100;
-			// 	precisionThresh = 0.01;
-			// 	getDamProf = false;
-			// }
-
-
-
-
-
-
 			// Early stop mechanism: Check every numAlns alignments
-			if (processedAlns % numAlns == 0) {
+			if (processedAlns % numAlns == 0 || ( critRange && processedAlns % numAlnsSafe == 0 && metaMode ) ) {
 
-			// Initialize the vector to store changes
-			std::vector<std::vector<double>> difference5p(MAXLENGTH, std::vector<double>(16, 0.0));
-			std::vector<std::vector<double>> difference3p(MAXLENGTH, std::vector<double>(16, 0.0));
+
+						// std::cerr << "critRange\t" << critRange << std::endl;
+						// std::cerr << "isConvergedLow\t" << isConvergedLow << std::endl;
+						// std::cerr << "processedAlns\t" << processedAlns << std::endl;
+						// std::cerr << "refNameStr\t" << refNameStr << std::endl;
+						// std::cerr << "\n" << std::endl;
+
+				// Initialize the vector to store changes
+				std::vector<std::vector<double>> difference5p(MAXLENGTH, std::vector<double>(16, 0.0));
+				std::vector<std::vector<double>> difference3p(MAXLENGTH, std::vector<double>(16, 0.0));
 
 				// Choose the appropriate 5' dimer type for current and temporary matrices
 				const std::vector<std::vector<unsigned int>>* dimer5pToUse;
@@ -674,26 +691,64 @@ int main (int argc, char *argv[]) {
 					}
 				}
 
+				int seq_len = b->core.l_qseq;
+				int max_l   = std::min(seq_len, MAXLENGTH);
 
-				bool stopEarly = false;  // Flag to indicate if all changes are small
+				// 1) collect the l‐indices: first 5 and last 5 (but not exceeding seq_len)
+				std::vector<int> l_positions;
+				for (int j = 0; j < 5 && j < seq_len; ++j)
+					l_positions.push_back(j);
+				for (int j = std::max(5, seq_len - 5); j < seq_len; ++j)
+					l_positions.push_back(j);
 
-				for (int l = 0; l < MAXLENGTH; ++l) {
-					for (int i = 0; i < 16; ++i) {
-						if ( precisionThresh != 0 ){
-							if (( difference5p[l][i] != 0 && difference5p[l][i] < precisionThresh ) && ( difference3p[l][i] != 0 && difference3p[l][i] < precisionThresh)) {
-								//std::cerr << "difference5p[l][i] " << difference5p[l][i] << std::endl;
-								//std::cerr << "difference3p[l][i] " << difference3p[l][i] << std::endl;
-								stopEarly = true;  // If any change exceeds 0.001, set flag to false
-								break;  // Break out early if we find a significant change
+				// Assume convergence across ALL l_positions and i==7,8
+				bool allConverged = true;
+				bool allConvergedStopEarly = true;
+
+				for (int l : l_positions) {
+					for (int i : {7, 8}) {
+						// double thresh = critRange ? critThresh : precisionThresh;
+
+						// if *any* single check fails, we’re not fully converged
+						if ( critRange ) { // is entered only in meta mode
+							if (!(difference5p[l][i] < critThresh && difference3p[l][i] < critThresh))
+							{
+								// std::cerr << "critRange\t" << critRange << std::endl;
+								// std::cerr << "isConvergedLow\t" << isConvergedLow << std::endl;
+								// std::cerr << "processedAlns\t" << processedAlns << std::endl;
+								// std::cerr << "difference5p[l][i]\t" << difference5p[l][i] << std::endl;
+								// std::cerr << "difference3p[l][i]\t" << difference3p[l][i] << std::endl;
+								// std::cerr << "l\t" << l << std::endl;
+								// std::cerr << "i\t" << i << std::endl;
+								// std::cerr << "refNameStr\t" << refNameStr << std::endl;
+								// std::cerr << "\n" << std::endl;
+								allConverged = false;
+								break;
+							}
+						}
+						else {
+							if (!(difference5p[l][i] < precisionThresh && difference3p[l][i] < precisionThresh))
+							{
+								allConvergedStopEarly = false;
+								break;
 							}
 						}
 					}
-					if (stopEarly) break;  // Exit the outer loop if we already know there's a significant change
+					if (!allConverged) break;  // no need to keep scanning
+					if (!allConvergedStopEarly) break;
 				}
 
-				// If no significant changes were detected across all positions and types, we can stop further iterations
-				if (stopEarly) {
-					//std::cout << "No significant change detected. Stopping iterations." << std::endl;
+				// now set your flag if—and only if—all passed
+				if (critRange && allConverged) { // can only be true in meta mode
+					// std::cerr << "allConverged\t" << allConverged << std::endl;
+					isConvergedLow = true;
+					isConvergedOnce = true;
+					// break;
+				}
+
+				if (!critRange && allConvergedStopEarly) {
+					stopEarly = true;
+					// std::cerr << "stopEarly\t" << stopEarly << std::endl;
 					break;
 				}
 
@@ -712,23 +767,36 @@ int main (int argc, char *argv[]) {
 			processedAlns++;
 		}
 
-		if ( !classicMode ){
-			generateDamageProfile(outDir, bamfiletopen, refNameStr, lengthMaxToPrint, dpFormat, hFormat, 
-								allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
-								genomeFileB, cpg, errorToRemove, failsafe, phred, 
-								typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
-								typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
-								typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
-								typesOfDimer3p_cpg, typesOfDimer3p_noncpg, mapped);
+		if ( metaMode ){
+			if ( isConvergedLow ){
+				generateDamageProfile(outDir, bamfiletopen, refNameStr, lengthMaxToPrint, dpFormat, hFormat, 
+									allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
+									genomeFileB, cpg, errorToRemove, failsafe, phred, 
+									typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
+									typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
+									typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
+									typesOfDimer3p_cpg, typesOfDimer3p_noncpg, mapped);
+			}
+			else{
+				generateDamageProfile(outDirUnsafe, bamfiletopen, refNameStr, lengthMaxToPrint, dpFormat, hFormat, 
+									allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
+									genomeFileB, cpg, errorToRemove, failsafe, phred, 
+									typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
+									typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
+									typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
+									typesOfDimer3p_cpg, typesOfDimer3p_noncpg, mapped);
+				}
 		}
 
         // Clean up
         hts_itr_destroy(iter);
         bam_destroy1(b);
+
+		//std:cerr << "processedAlns\t" << processedAlns << std::endl;
     }
 
-
 	if ( classicMode ){
+		// if ( isConvergedOnce || totalMapped >= numAlnsSafeRange ){
 		generateDamageProfile(outDir, bamfiletopen, "classic", lengthMaxToPrint, dpFormat, hFormat, 
 							allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
 							genomeFileB, cpg, errorToRemove, failsafe, phred, 
@@ -736,6 +804,16 @@ int main (int argc, char *argv[]) {
 							typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
 							typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
 							typesOfDimer3p_cpg, typesOfDimer3p_noncpg, totalMapped);
+		// }
+		// else{
+		// 	generateDamageProfile(outDirUnsafe, bamfiletopen, "classic", lengthMaxToPrint, dpFormat, hFormat, 
+		// 						allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
+		// 						genomeFileB, cpg, errorToRemove, failsafe, phred, 
+		// 						typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
+		// 						typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
+		// 						typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
+		// 						typesOfDimer3p_cpg, typesOfDimer3p_noncpg, totalMapped);
+		// 	}
 	}
 
     // Clean up
