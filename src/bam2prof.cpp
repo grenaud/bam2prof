@@ -48,6 +48,9 @@ int main (int argc, char *argv[]) {
     bool quiet=true;
 	bool classicMode=false;
 	double precisionThresh=0.0;
+	double precisionConverge=0.01;
+	int stepsizeConverge=500;
+	unsigned int convergeUntil=100000;
 	//string refId;
 
 	//#define DEBUG
@@ -90,6 +93,10 @@ int main (int argc, char *argv[]) {
 			"\t\t"+"-dp\t\t\tOutput in damage-patterns format (Default: "+booleanAsString(dpFormat)+")\n"+
 			"\t\t"+"-h\t\t\tMore human readible output (Default: "+booleanAsString(hFormat)+")\n"+
 			"\t\t"+"-q\t\t\tDo not print why reads are skipped. Turn On [1] or Off [0] (Default: "+booleanAsString(quiet)+")\n"+
+
+			"\n\n\tExpert options (Identifiying zig-zag profiles):\n"+
+			"\t\t"+"-minConverge\t\tSet minimum threshold for substitution frequency convergence (Default: "+stringify( precisionConverge)+")\n"+
+			"\t\t"+"-stepsConverge\t\tCheck every step-size number of aligned fragments for convergence (Default: "+stringify( stepsizeConverge )+")\n"+
 		       
 			"\n");
 
@@ -205,6 +212,25 @@ int main (int argc, char *argv[]) {
 
         if(string(argv[i]) == "-minAligned"  ){
             numAlns=destringify<int>(argv[i+1]);
+            i++;
+            continue;
+        }
+
+
+		if(string(argv[i]) == "-minConverge"  ){
+            precisionConverge=destringify<double>(argv[i+1]);
+			i++;
+            continue;
+        }
+
+        if(string(argv[i]) == "-stepsConverge"  ){
+            stepsizeConverge=destringify<int>(argv[i+1]);
+            i++;
+            continue;
+        }
+
+        if(string(argv[i]) == "-convergeUntil"  ){
+            convergeUntil=destringify<int>(argv[i+1]);
             i++;
             continue;
         }
@@ -482,9 +508,9 @@ int main (int argc, char *argv[]) {
 	bool stopEarly = false;
 	bool isConvergedOnce = false;
 
-	unsigned int numAlnsSafeRange = 100000;
-	unsigned int numAlnsSafe = 500;
-	float critThresh = 0.01;
+	unsigned int numAlnsSafeRange = convergeUntil;
+	unsigned int numAlnsSafe = stepsizeConverge;
+	float critThresh = precisionConverge;
 
 	// Iterate over each reference 
 	for (int i = 0; i < h->n_targets; i++) {
@@ -565,7 +591,7 @@ int main (int argc, char *argv[]) {
 
 			if ( processedAlns >= 10000 ){
 				unsigned int numAlnsSafe = 1000;
-				float critThresh = 0.01;
+				float critThresh = precisionConverge;
 			}
 
 			bool critRange = (processedAlns <= numAlnsSafeRange);
