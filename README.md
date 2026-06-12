@@ -7,6 +7,8 @@ bam2prof is a tool designed to analyze BAM files and generate substitution profi
 
 - Substitution Profiling: Computes substitution rates at both 5' and 3' ends of reads to assess DNA damage patterns.
 - Customizable Parameters: Allows users to set minimum base quality scores, minimum read lengths, and specify the length of the profile to generate.
+ 
+ <img width="6000" height="2400" alt="denisova21_ancient_sampled_5_classic_n50191__combined_plot_with_legend" src="https://github.com/user-attachments/assets/eac44636-ee1e-44f3-bf4d-b560f6004a1d" />
 
 ## Requirements
 
