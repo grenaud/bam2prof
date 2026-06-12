@@ -579,7 +579,35 @@ vector<vector<unsigned int>> initializeDimerVectors(int maxLength, int innerSize
 //     file3pFP.close();
 // }
 
-void generateDamageProfile( const std::string& outDir, const std::string& bamfiletopen, const std::string& refId, int lengthMaxToPrint, bool dpFormat, bool hFormat, bool allStr, bool singAnddoubleStr, bool doubleStr, bool singleStr, bool endo, bool genomeFileB, bool cpg, double errorToRemove, bool failsafe, bool phred, const std::vector<std::vector<unsigned int>>& typesOfDimer5pSingle, const std::vector<std::vector<unsigned int>>& typesOfDimer5pDouble, const std::vector<std::vector<unsigned int>>& typesOfDimer5p, const std::vector<std::vector<unsigned int>>& typesOfDimer5p_cpg, const std::vector<std::vector<unsigned int>>& typesOfDimer5p_noncpg, const std::vector<std::vector<unsigned int>>& typesOfDimer3pSingle, const std::vector<std::vector<unsigned int>>& typesOfDimer3pDouble, const std::vector<std::vector<unsigned int>>& typesOfDimer3p, const std::vector<std::vector<unsigned int>>& typesOfDimer3p_cpg, const std::vector<std::vector<unsigned int>>& typesOfDimer3p_noncpg, uint64_t mapped) {
+void generateDamageProfile( const std::string& outDir,
+			    const std::string& file5pparam,
+			    const std::string& file3pparam,
+			    const std::string& bamfiletopen,
+			    const std::string& refId,
+			    int lengthMaxToPrint,
+			    bool dpFormat,
+			    bool hFormat,
+			    bool allStr,
+			    bool singAnddoubleStr,
+			    bool doubleStr,
+			    bool singleStr,
+			    bool endo,
+			    bool genomeFileB,
+			    bool cpg,
+			    double errorToRemove,
+			    bool failsafe,
+			    bool phred,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer5pSingle,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer5pDouble,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer5p,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer5p_cpg,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer5p_noncpg,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer3pSingle,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer3pDouble,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer3p,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer3p_cpg,
+			    const std::vector<std::vector<unsigned int>>& typesOfDimer3p_noncpg,
+			    uint64_t mapped) {
     
     std::string file5p, file3p;
     std::string mappedStr = std::to_string(mapped);
@@ -590,8 +618,18 @@ void generateDamageProfile( const std::string& outDir, const std::string& bamfil
     std::string file_base = bamfiletopenBase.substr(0, p);
     
     if (outDir == "/dev/stdout") {
-        file5p = "/dev/stdout";
-        file3p = "/dev/stdout";
+	if(file5pparam == "/dev/stdout"){
+	    file5p = "/dev/stdout";
+	}else{
+	    file5p = file5pparam;
+	}
+
+	if(file3pparam == "/dev/stdout"){
+	    file3p = "/dev/stdout";
+	}else{
+	    file3p = file3pparam;
+	}
+
     } else {
         std::string command = "mkdir -p " + outDir;
         int result = system(command.c_str());

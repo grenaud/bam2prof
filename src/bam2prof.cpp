@@ -13,11 +13,11 @@ int main (int argc, char *argv[]) {
 
     string file5pDefault="/dev/stdout";
     string file3pDefault="/dev/stdout";
-	string outDir="/dev/stdout";
-	string outDirUnsafe="/dev/stdout";
-	vector<string> refIdsList={};
-	vector<string> bamFiles={};
-
+    string outDir="/dev/stdout";
+    string outDirUnsafe="/dev/stdout";
+    vector<string> refIdsList={};
+    vector<string> bamFiles={};
+    
     bool endo=false;
 
     bool allStr   =true;
@@ -43,15 +43,15 @@ int main (int argc, char *argv[]) {
     bool bedF=false;
     bool mask=false;
     bool failsafe=false;
-	bool metaMode=false;
+    bool metaMode=false;
     bool paired=false;
     bool quiet=true;
-	bool classicMode=false;
-	double precisionThresh=0.0;
-	double precisionConverge=0.01;
-	int stepsizeConverge=500;
-	unsigned int convergeUntil=100000;
-	//string refId;
+    bool classicMode=true;
+    double precisionThresh=0.0;
+    double precisionConverge=0.01;
+    int stepsizeConverge=500;
+    unsigned int convergeUntil=100000;
+    //string refId;
 
 	//#define DEBUG
 
@@ -75,7 +75,7 @@ int main (int argc, char *argv[]) {
 			"\t\t"+"-mask\t[bed file]\tMask these positions in the bed file    (Default: "+booleanAsString( mask )+" ) \n"+
 			"\t\t"+"-paired\t\t\tAllow paired reads    (Default: "+booleanAsString( paired )+" ) \n"+
 			"\t\t"+"-meta\t\t\tOne Profile for each unique reference    (Default: "+booleanAsString( metaMode )+" ) \n"+
-			"\t\t"+"-classic\t\tOne Profile per bam file    (Default: "+booleanAsString( classicMode )+" ) \n"+
+			"\t\t"+"-classic\t\tOne Profile per bam file (default)   (Default: "+booleanAsString( classicMode )+" ) \n"+
 			"\t\t"+"-precision\t\tSet minimum precision for substitution frequency computation (Default: All alignments [= 0.0]; Speed up by setting precision to either 0.01, 0.001, ... ) \n"+
 			"\t\t"+"-minAligned\t\tNumber of aligned sequences after which substitution patterns are checked for converging (Default: "+stringify( numAlns )+")\n"+
 			"\t\t"+"-ref-id\t\t\tSpecify reference ID; if multiple references: Provide comma seperated list (no spaces!) ( Default: Not Set ) \n"+
@@ -89,7 +89,7 @@ int main (int argc, char *argv[]) {
 			"\n\n\tOutput options:\n"+
 			"\t\t"+"-5p\t[output file]\tOutput profile for the 5' end (Default: "+stringify(file5pDefault)+")\n"+
 			"\t\t"+"-3p\t[output file]\tOutput profile for the 3' end (Default: "+stringify(file3pDefault)+")\n"+
-			"\t\t"+"-o\t[output dir]\tOutput Directory for all matrices (Default: "+stringify(outDir)+")\n"+
+			"\t\t"+"-o\t[output dir]\tOutput Directory for all matrices (Default: "+stringify(outDir)+")\n"+			
 			"\t\t"+"-dp\t\t\tOutput in damage-patterns format (Default: "+booleanAsString(dpFormat)+")\n"+
 			"\t\t"+"-h\t\t\tMore human readible output (Default: "+booleanAsString(hFormat)+")\n"+
 			"\t\t"+"-q\t\t\tDo not print why reads are skipped. Turn On [1] or Off [0] (Default: "+booleanAsString(quiet)+")\n"+
@@ -127,15 +127,15 @@ int main (int argc, char *argv[]) {
             continue;
         }
 
-		if(string(argv[i]) == "-meta"  ){
-			metaMode=true;
-			continue;
+	if(string(argv[i]) == "-meta"  ){
+	    metaMode=true;
+	    continue;
         }
 
-		if(string(argv[i]) == "-classic"  ){
-			classicMode=true;
-			continue;
-        }
+	if(string(argv[i]) == "-classic"  ){
+	    classicMode=true;
+	    continue;
+	}
 
         if(string(argv[i]) == "-bed"  ){
             bedfilename=string(argv[i+1]);
@@ -151,10 +151,10 @@ int main (int argc, char *argv[]) {
             continue;
         }
 
-		if(string(argv[i]) == "-failsafe"  ){
-			failsafe=true;
-			i++;
-			continue;
+	if(string(argv[i]) == "-failsafe"  ){
+	    failsafe=true;
+	    i++;
+	    continue;
         }
 
         if(string(argv[i]) == "-h"  ){
@@ -306,20 +306,20 @@ int main (int argc, char *argv[]) {
 	return 1;
     }
 
-	if ( classicMode && metaMode ){
-		std::cerr << "Error: cannot specify both -classic and -meta )" << std::endl;
-		return 1;
-	}
+    if ( classicMode && metaMode ){
+	std::cerr << "Error: cannot specify both -classic and -meta )" << std::endl;
+	return 1;
+    }
 
-	if ( !classicMode && !metaMode ){
-		std::cerr << "Error: need to specify mode: -classic or -meta )" << std::endl;
-		return 1;
-	}
+    if ( !classicMode && !metaMode ){
+	std::cerr << "Error: need to specify mode: -classic or -meta )" << std::endl;
+	return 1;
+    }
 
-	if ( classicMode && (refIdsList.size() != 0 || metaMode) ){
-		std::cerr << "Error: cannot specify none: At least one must be specified -classic OR -meta )" << std::endl;
-		return 1;
-	}
+    if ( classicMode && (refIdsList.size() != 0 || metaMode) ){
+	std::cerr << "Error: cannot specify none: At least one must be specified -classic OR -meta )" << std::endl;
+	return 1;
+    }
 
     if(  endo &&  paired ){
 	cerr<<"Error: cannot specify both -endo and -paired"<<endl;
@@ -365,15 +365,15 @@ int main (int argc, char *argv[]) {
 	genome=new IndexedGenome(genomeFile.c_str());
 	cerr<<genomeFile<<" mapped into memory"<<endl;
     }
-
-	// Define the output path for the profiles that have not converged
-	if (!outDir.empty() && outDir.back() == '/'){
-		outDir.pop_back();
-	} 
-	
-	outDirUnsafe = outDir + "_notConverged";
-	string outDirSwap = outDir;
-
+    
+    // Define the output path for the profiles that have not converged
+    if (!outDir.empty() && outDir.back() == '/'){
+	outDir.pop_back();
+    } 
+    
+    outDirUnsafe = outDir + "_notConverged";
+    string outDirSwap = outDir;
+    
     // Creating the output directory
     if ( outDir != "/dev/stdout" ) {
         std::string command = "mkdir -p " + outDir;
@@ -390,458 +390,467 @@ int main (int argc, char *argv[]) {
         }
     }
 
-	// string bamfilelist = string( argv[ argc-1 ] );
+    // string bamfilelist = string( argv[ argc-1 ] );
     // stringstream ss(bamfilelist);
     // string bamitem;
-	// while (std::getline(ss, bamitem, ',')) {
-	// 	bamFiles.push_back(bamitem);  // Add each ref ID to the vector
-	// }
-
+    // while (std::getline(ss, bamitem, ',')) {
+    // 	bamFiles.push_back(bamitem);  // Add each ref ID to the vector
+    // }
+    
 	
-	string bamfiletopen = string( argv[ argc-1 ] );
-
-	bam_hdr_t *h;
-	samFile  *fp;
-	hts_idx_t *idx;
-
-	fp = sam_open_format(bamfiletopen.c_str(), "r", NULL); 
-	if(fp == NULL){
+    string bamfiletopen = string( argv[ argc-1 ] );
+    
+    bam_hdr_t *h;
+    samFile  *fp;
+    hts_idx_t *idx;
+    
+    fp = sam_open_format(bamfiletopen.c_str(), "r", NULL); 
+    if(fp == NULL){
 	cerr << "Could not open input BAM file"<< bamfiletopen << endl;
 	return 1;
-	}
+    }
 
-	h = sam_hdr_read(fp);
-	if(h == NULL){
-		cerr<<"Could not read header for "<<bamfiletopen<<endl;
-		return 1;
-	}
+    h = sam_hdr_read(fp);
+    if(h == NULL){
+	cerr<<"Could not read header for "<<bamfiletopen<<endl;
+	return 1;
+    }
 
-	// Load the index for the BAM file
-	idx = sam_index_load(fp, bamfiletopen.c_str());
-	if(idx == NULL){
-		std::cerr << "Could not load index for " << bamfiletopen << std::endl;
-		return 1;
-	}
+    // Load the index for the BAM file
+    idx = sam_index_load(fp, bamfiletopen.c_str());
+    if(idx == NULL){
+	std::cerr << "Could not load index for " << bamfiletopen << std::endl;
+	return 1;
+    }
+    
+    
+    //std::set<int32_t> refIdSet;
+    std::set<std::string> refNameSet;
+    
+    for (const auto& refName : refIdsList) {
+	refNameSet.insert(refName);
+	//refIdSet.insert(sam_hdr_name2tid(h, refName.c_str()));
+    }
 
 
-	//std::set<int32_t> refIdSet;
-	std::set<std::string> refNameSet;
-
-	for (const auto& refName : refIdsList) {
-		refNameSet.insert(refName);
-		//refIdSet.insert(sam_hdr_name2tid(h, refName.c_str()));
-	}
-
-
-	vector< vector<unsigned int> > typesOfDimer5p; //5' deam rates
-	vector< vector<unsigned int> > typesOfDimer3p; //3' deam rates
-
-	vector< vector<unsigned int> > typesOfDimer5p_cpg; //5' deam rates
-	vector< vector<unsigned int> > typesOfDimer3p_cpg; //3' deam rates
-	vector< vector<unsigned int> > typesOfDimer5p_noncpg; //5' deam rates
-	vector< vector<unsigned int> > typesOfDimer3p_noncpg; //3' deam rates
-
-	vector< vector<unsigned int> > typesOfDimer5pDouble; //5' deam rates when the 3' is deaminated according to a double str.
-	vector< vector<unsigned int> > typesOfDimer3pDouble; //3' deam rates when the 5' is deaminated according to a double str.
-	vector< vector<unsigned int> > typesOfDimer5pSingle; //5' deam rates when the 3' is deaminated according to a single str.
-	vector< vector<unsigned int> > typesOfDimer3pSingle; //3' deam rates when the 5' is deaminated according to a single str.
-
-	// Then we initialize a new vectors to count:
-	typesOfDimer5p       = vector< vector<unsigned int> >();
-	typesOfDimer3p       = vector< vector<unsigned int> >();
-	typesOfDimer5p_cpg   = vector< vector<unsigned int> >();
-	typesOfDimer3p_cpg   = vector< vector<unsigned int> >();
-	typesOfDimer5p_noncpg= vector< vector<unsigned int> >();
-	typesOfDimer3p_noncpg= vector< vector<unsigned int> >();
-	
-	typesOfDimer5pDouble = vector< vector<unsigned int> >();
-	typesOfDimer3pDouble = vector< vector<unsigned int> >();
-	typesOfDimer5pSingle = vector< vector<unsigned int> >();
-	typesOfDimer3pSingle = vector< vector<unsigned int> >();
-
-	for(int l=0;l<MAXLENGTH;l++){
+    vector< vector<unsigned int> > typesOfDimer5p; //5' deam rates
+    vector< vector<unsigned int> > typesOfDimer3p; //3' deam rates
+    
+    vector< vector<unsigned int> > typesOfDimer5p_cpg; //5' deam rates
+    vector< vector<unsigned int> > typesOfDimer3p_cpg; //3' deam rates
+    vector< vector<unsigned int> > typesOfDimer5p_noncpg; //5' deam rates
+    vector< vector<unsigned int> > typesOfDimer3p_noncpg; //3' deam rates
+    
+    vector< vector<unsigned int> > typesOfDimer5pDouble; //5' deam rates when the 3' is deaminated according to a double str.
+    vector< vector<unsigned int> > typesOfDimer3pDouble; //3' deam rates when the 5' is deaminated according to a double str.
+    vector< vector<unsigned int> > typesOfDimer5pSingle; //5' deam rates when the 3' is deaminated according to a single str.
+    vector< vector<unsigned int> > typesOfDimer3pSingle; //3' deam rates when the 5' is deaminated according to a single str.
+    
+    // Then we initialize a new vectors to count:
+    typesOfDimer5p       = vector< vector<unsigned int> >();
+    typesOfDimer3p       = vector< vector<unsigned int> >();
+    typesOfDimer5p_cpg   = vector< vector<unsigned int> >();
+    typesOfDimer3p_cpg   = vector< vector<unsigned int> >();
+    typesOfDimer5p_noncpg= vector< vector<unsigned int> >();
+    typesOfDimer3p_noncpg= vector< vector<unsigned int> >();
+    
+    typesOfDimer5pDouble = vector< vector<unsigned int> >();
+    typesOfDimer3pDouble = vector< vector<unsigned int> >();
+    typesOfDimer5pSingle = vector< vector<unsigned int> >();
+    typesOfDimer3pSingle = vector< vector<unsigned int> >();
+    
+    for(int l=0;l<MAXLENGTH;l++){
 	//for(int i=0;i<16;i++){
+	typesOfDimer5p.push_back( vector<unsigned int> ( 16,0 ) );
+	typesOfDimer3p.push_back( vector<unsigned int> ( 16,0 ) );
+	typesOfDimer5p_cpg.push_back( vector<unsigned int> ( 16,0 ) );
+	typesOfDimer3p_cpg.push_back( vector<unsigned int> ( 16,0 ) );
+	typesOfDimer5p_noncpg.push_back( vector<unsigned int> ( 16,0 ) );
+	typesOfDimer3p_noncpg.push_back( vector<unsigned int> ( 16,0 ) );
+	
+	typesOfDimer5pDouble.push_back( vector<unsigned int> ( 16,0 ) );
+	typesOfDimer3pDouble.push_back( vector<unsigned int> ( 16,0 ) );
+	typesOfDimer5pSingle.push_back( vector<unsigned int> ( 16,0 ) );
+	typesOfDimer3pSingle.push_back( vector<unsigned int> ( 16,0 ) );
+	//}
+    }
+
+    // Initiating the early stop rule for the "classic" mode:
+
+    vector< vector<unsigned int> > typesOfDimer5pTmp; //5' deam rates
+    vector< vector<unsigned int> > typesOfDimer3pTmp; //3' deam rates
+
+    vector< vector<unsigned int> > typesOfDimer5p_cpgTmp; //5' deam rates
+    vector< vector<unsigned int> > typesOfDimer3p_cpgTmp; //3' deam rates
+    vector< vector<unsigned int> > typesOfDimer5p_noncpgTmp; //5' deam rates
+    vector< vector<unsigned int> > typesOfDimer3p_noncpgTmp; //3' deam rates
+
+    vector< vector<unsigned int> > typesOfDimer5pDoubleTmp; //5' deam rates when the 3' is deaminated according to a double str.
+    vector< vector<unsigned int> > typesOfDimer3pDoubleTmp; //3' deam rates when the 5' is deaminated according to a double str.
+    vector< vector<unsigned int> > typesOfDimer5pSingleTmp; //5' deam rates when the 3' is deaminated according to a single str.
+    vector< vector<unsigned int> > typesOfDimer3pSingleTmp; //3' deam rates when the 5' is deaminated according to a single str.
+    
+    // Then we initialize a new vectors to count:
+    typesOfDimer5pTmp       = typesOfDimer5p;
+    typesOfDimer3pTmp       = typesOfDimer3p;
+    typesOfDimer5p_cpgTmp   = typesOfDimer5p_cpg;
+    typesOfDimer3p_cpgTmp   = typesOfDimer3p_cpg;
+    typesOfDimer5p_noncpgTmp= typesOfDimer5p_noncpg;
+    typesOfDimer3p_noncpgTmp= typesOfDimer3p_noncpg;
+    
+    typesOfDimer5pDoubleTmp = typesOfDimer5pDoubleTmp;
+    typesOfDimer3pDoubleTmp = typesOfDimer3pDoubleTmp;
+    typesOfDimer5pSingleTmp = typesOfDimer5pSingleTmp;
+    typesOfDimer3pSingleTmp = typesOfDimer3pSingleTmp;
+    
+    uint64_u totalMapped = 0;
+    
+    bool stopEarly = false;
+    bool isConvergedOnce = false;
+
+    unsigned int numAlnsSafeRange = convergeUntil;
+    unsigned int numAlnsSafe = stepsizeConverge;
+    float critThresh = precisionConverge;
+
+    // Iterate over each reference 
+    for (int i = 0; i < h->n_targets; i++) {
+
+	unsigned int processedAlns = 1;
+
+	//std::cerr << "iterating targets" << std::endl;
+	const char* refName = h->target_name[i];
+	std::string refNameStr(refName);
+
+	if ( !classicMode && refIdsList.size() > 0 ){
+	    if (refNameSet.find(refNameStr) == refNameSet.end()) {
+		//std::cerr << "inside continue" << std::endl;
+		continue;
+	    }
+	}
+	
+	if ( !classicMode ){
+	    // Then we initialize a new vector to count:
+	    typesOfDimer5p       = vector< vector<unsigned int> >();
+	    typesOfDimer3p       = vector< vector<unsigned int> >();
+	    typesOfDimer5p_cpg   = vector< vector<unsigned int> >();
+	    typesOfDimer3p_cpg   = vector< vector<unsigned int> >();
+	    typesOfDimer5p_noncpg= vector< vector<unsigned int> >();
+	    typesOfDimer3p_noncpg= vector< vector<unsigned int> >();
+	    
+	    typesOfDimer5pDouble = vector< vector<unsigned int> >();
+	    typesOfDimer3pDouble = vector< vector<unsigned int> >();
+	    typesOfDimer5pSingle = vector< vector<unsigned int> >();
+	    typesOfDimer3pSingle = vector< vector<unsigned int> >();
+	    
+	    for(int l=0;l<MAXLENGTH;l++){
+		//for(int i=0;i<16;i++){
 		typesOfDimer5p.push_back( vector<unsigned int> ( 16,0 ) );
 		typesOfDimer3p.push_back( vector<unsigned int> ( 16,0 ) );
 		typesOfDimer5p_cpg.push_back( vector<unsigned int> ( 16,0 ) );
 		typesOfDimer3p_cpg.push_back( vector<unsigned int> ( 16,0 ) );
 		typesOfDimer5p_noncpg.push_back( vector<unsigned int> ( 16,0 ) );
 		typesOfDimer3p_noncpg.push_back( vector<unsigned int> ( 16,0 ) );
-
+		
 		typesOfDimer5pDouble.push_back( vector<unsigned int> ( 16,0 ) );
 		typesOfDimer3pDouble.push_back( vector<unsigned int> ( 16,0 ) );
 		typesOfDimer5pSingle.push_back( vector<unsigned int> ( 16,0 ) );
 		typesOfDimer3pSingle.push_back( vector<unsigned int> ( 16,0 ) );
-	//}
+		//}
+	    }
 	}
 
-	// Initiating the early stop rule for the "classic" mode:
-
-	vector< vector<unsigned int> > typesOfDimer5pTmp; //5' deam rates
-	vector< vector<unsigned int> > typesOfDimer3pTmp; //3' deam rates
-
-	vector< vector<unsigned int> > typesOfDimer5p_cpgTmp; //5' deam rates
-	vector< vector<unsigned int> > typesOfDimer3p_cpgTmp; //3' deam rates
-	vector< vector<unsigned int> > typesOfDimer5p_noncpgTmp; //5' deam rates
-	vector< vector<unsigned int> > typesOfDimer3p_noncpgTmp; //3' deam rates
-
-	vector< vector<unsigned int> > typesOfDimer5pDoubleTmp; //5' deam rates when the 3' is deaminated according to a double str.
-	vector< vector<unsigned int> > typesOfDimer3pDoubleTmp; //3' deam rates when the 5' is deaminated according to a double str.
-	vector< vector<unsigned int> > typesOfDimer5pSingleTmp; //5' deam rates when the 3' is deaminated according to a single str.
-	vector< vector<unsigned int> > typesOfDimer3pSingleTmp; //3' deam rates when the 5' is deaminated according to a single str.
-
-	// Then we initialize a new vectors to count:
-	typesOfDimer5pTmp       = typesOfDimer5p;
-	typesOfDimer3pTmp       = typesOfDimer3p;
-	typesOfDimer5p_cpgTmp   = typesOfDimer5p_cpg;
-	typesOfDimer3p_cpgTmp   = typesOfDimer3p_cpg;
-	typesOfDimer5p_noncpgTmp= typesOfDimer5p_noncpg;
-	typesOfDimer3p_noncpgTmp= typesOfDimer3p_noncpg;
+	hts_itr_t *iter = sam_itr_queryi(idx, i, 0, h->target_len[i]);
+	bam1_t *b = bam_init1();
 	
-	typesOfDimer5pDoubleTmp = typesOfDimer5pDoubleTmp;
-	typesOfDimer3pDoubleTmp = typesOfDimer3pDoubleTmp;
-	typesOfDimer5pSingleTmp = typesOfDimer5pSingleTmp;
-	typesOfDimer3pSingleTmp = typesOfDimer3pSingleTmp;
+	// Check if iter is null
+	if (iter == NULL) {
+	    std::cerr << "Could not create iterator for target " << h->target_name[i] << std::endl;
+	    continue;
+	}
 
-	uint64_u totalMapped = 0;
+	string refFromFasta_;
+	string refFromFasta;
+	
+	pair< kstring_t *, vector<int> >  reconstructedReference;
+	reconstructedReference.first =(kstring_t *) calloc(sizeof(kstring_t),1);
+	reconstructedReference.first->s =0 ;
+	reconstructedReference.first->l =    reconstructedReference.first->m =0;
+	
 
-	bool stopEarly = false;
-	bool isConvergedOnce = false;
-
-	unsigned int numAlnsSafeRange = convergeUntil;
-	unsigned int numAlnsSafe = stepsizeConverge;
-	float critThresh = precisionConverge;
-
-	// Iterate over each reference 
-	for (int i = 0; i < h->n_targets; i++) {
-
-		unsigned int processedAlns = 1;
-
-		//std::cerr << "iterating targets" << std::endl;
-		const char* refName = h->target_name[i];
-		std::string refNameStr(refName);
-
-		if ( !classicMode && refIdsList.size() > 0 ){
-			if (refNameSet.find(refNameStr) == refNameSet.end()) {
-				//std::cerr << "inside continue" << std::endl;
-				continue;
-			}
-		}
-
-		if ( !classicMode ){
-			// Then we initialize a new vector to count:
-			typesOfDimer5p       = vector< vector<unsigned int> >();
-			typesOfDimer3p       = vector< vector<unsigned int> >();
-			typesOfDimer5p_cpg   = vector< vector<unsigned int> >();
-			typesOfDimer3p_cpg   = vector< vector<unsigned int> >();
-			typesOfDimer5p_noncpg= vector< vector<unsigned int> >();
-			typesOfDimer3p_noncpg= vector< vector<unsigned int> >();
-			
-			typesOfDimer5pDouble = vector< vector<unsigned int> >();
-			typesOfDimer3pDouble = vector< vector<unsigned int> >();
-			typesOfDimer5pSingle = vector< vector<unsigned int> >();
-			typesOfDimer3pSingle = vector< vector<unsigned int> >();
-
-			for(int l=0;l<MAXLENGTH;l++){
-			//for(int i=0;i<16;i++){
-				typesOfDimer5p.push_back( vector<unsigned int> ( 16,0 ) );
-				typesOfDimer3p.push_back( vector<unsigned int> ( 16,0 ) );
-				typesOfDimer5p_cpg.push_back( vector<unsigned int> ( 16,0 ) );
-				typesOfDimer3p_cpg.push_back( vector<unsigned int> ( 16,0 ) );
-				typesOfDimer5p_noncpg.push_back( vector<unsigned int> ( 16,0 ) );
-				typesOfDimer3p_noncpg.push_back( vector<unsigned int> ( 16,0 ) );
-
-				typesOfDimer5pDouble.push_back( vector<unsigned int> ( 16,0 ) );
-				typesOfDimer3pDouble.push_back( vector<unsigned int> ( 16,0 ) );
-				typesOfDimer5pSingle.push_back( vector<unsigned int> ( 16,0 ) );
-				typesOfDimer3pSingle.push_back( vector<unsigned int> ( 16,0 ) );
-			//}
-			}
-		}
-
-		hts_itr_t *iter = sam_itr_queryi(idx, i, 0, h->target_len[i]);
-		bam1_t *b = bam_init1();
-
-		// Check if iter is null
-		if (iter == NULL) {
-			std::cerr << "Could not create iterator for target " << h->target_name[i] << std::endl;
-			continue;
-		}
-
-		string refFromFasta_;
-		string refFromFasta;
+	// Get the number of mapped reads for the current reference 'i'
+	uint64_t mapped = 0, unmapped = 0;
+	hts_idx_get_stat(idx, i, &mapped, &unmapped);
+	totalMapped += mapped;
+	
+	bool isConvergedLow = false;  // Flag to indicate if all changes are small; Also tells us if converged at all or not
+	
+	stopEarly = false; // for any mode but references where at least 10 Mio have aligned PER REFERENCE
 		
-		pair< kstring_t *, vector<int> >  reconstructedReference;
-		reconstructedReference.first =(kstring_t *) calloc(sizeof(kstring_t),1);
-		reconstructedReference.first->s =0 ;
-		reconstructedReference.first->l =    reconstructedReference.first->m =0;
-
-
-		// Get the number of mapped reads for the current reference 'i'
-		uint64_t mapped = 0, unmapped = 0;
-		hts_idx_get_stat(idx, i, &mapped, &unmapped);
-		totalMapped += mapped;
-
-		bool isConvergedLow = false;  // Flag to indicate if all changes are small; Also tells us if converged at all or not
-
-		stopEarly = false; // for any mode but references where at least 10 Mio have aligned PER REFERENCE
-
-		// Iterate over the BAM records
-		while (sam_itr_next(fp, iter, b) >= 0) {
-
-			if ( processedAlns >= 10000 ){
-				unsigned int numAlnsSafe = 1000;
-				float critThresh = precisionConverge;
-			}
-
-			bool critRange = (processedAlns <= numAlnsSafeRange);
-			if(bam_is_unmapped(b)){
-				if(!quiet)
-					cerr<<"skipping "<<bam_get_qname(b)<<" unmapped"<<endl;
-				continue;
-			}
-			if(bam_is_failed(b)){
-				if(!quiet)
-					cerr<<"skipping "<<bam_get_qname(b)<<" failed"<<endl;
-				continue;
-			}
-			if(b->core.l_qseq < minLength){
-				if(!quiet)
-					cerr<<"skipping "<<bam_get_qname(b)<<" too short"<<endl;
-				continue;
-			}
-			bool ispaired = bam_is_paired(b);
-			bool isfirstpair = bam_is_read1(b);
-
-			if(!paired){    
-				if(ispaired){
-					if(!quiet)
-						cerr<<"skipping "<<bam_get_qname(b)<<" is paired (can be considered using the -paired flag)"<<endl;
-					continue;
-				}
-			}
-
-			// update matrix
-			countSubsPerRef(genomeFileB, genome, b, reconstructedReference, minQualBase, refFromFasta, refFromFasta_, h, bed, mask, ispaired, isfirstpair, typesOfDimer5p, typesOfDimer3p, typesOfDimer5p_cpg, typesOfDimer3p_cpg, typesOfDimer5p_noncpg, typesOfDimer3p_noncpg, typesOfDimer5pDouble, typesOfDimer3pDouble, typesOfDimer5pSingle, typesOfDimer3pSingle);
-
-
-			// Early stop mechanism: Check every numAlns alignments
-			if (processedAlns % numAlns == 0 || ( critRange && processedAlns % numAlnsSafe == 0 && metaMode ) ) {
-
-
-						// std::cerr << "critRange\t" << critRange << std::endl;
-						// std::cerr << "isConvergedLow\t" << isConvergedLow << std::endl;
-						// std::cerr << "processedAlns\t" << processedAlns << std::endl;
-						// std::cerr << "refNameStr\t" << refNameStr << std::endl;
-						// std::cerr << "\n" << std::endl;
-
-				// Initialize the vector to store changes
-				std::vector<std::vector<double>> difference5p(MAXLENGTH, std::vector<double>(16, 0.0));
-				std::vector<std::vector<double>> difference3p(MAXLENGTH, std::vector<double>(16, 0.0));
-
-				// Choose the appropriate 5' dimer type for current and temporary matrices
-				const std::vector<std::vector<unsigned int>>* dimer5pToUse;
-				const std::vector<std::vector<unsigned int>>* dimer5pTmpToUse;
-				if (endo) {
-					dimer5pToUse = doubleStr ? &typesOfDimer5pDouble : &typesOfDimer5pSingle;
-					dimer5pTmpToUse = doubleStr ? &typesOfDimer5pDoubleTmp : &typesOfDimer5pSingleTmp;
-				} else {
-					dimer5pToUse = &typesOfDimer5p;
-					dimer5pTmpToUse = &typesOfDimer5pTmp;
-				}
-				if (genomeFileB) {
-					dimer5pToUse = cpg ? &typesOfDimer5p_cpg : &typesOfDimer5p_noncpg;
-					dimer5pTmpToUse = cpg ? &typesOfDimer5p_cpgTmp : &typesOfDimer5p_noncpgTmp;
-				}
-
-				// Same for 3'
-				const std::vector<std::vector<unsigned int>>* dimer3pToUse;
-				const std::vector<std::vector<unsigned int>>* dimer3pTmpToUse;
-				if (endo) {
-					dimer3pToUse = doubleStr ? &typesOfDimer3pDouble : &typesOfDimer3pSingle;
-					dimer3pTmpToUse = doubleStr ? &typesOfDimer3pDoubleTmp : &typesOfDimer3pSingleTmp;
-				} else {
-					dimer3pToUse = &typesOfDimer3p;
-					dimer3pTmpToUse = &typesOfDimer3pTmp;
-				}
-				if (genomeFileB) {
-					dimer3pToUse = cpg ? &typesOfDimer3p_cpg : &typesOfDimer3p_noncpg;
-					dimer3pTmpToUse = cpg ? &typesOfDimer3p_cpgTmp : &typesOfDimer3p_noncpgTmp;
-				}
-
-
-				// Assign based on input arguments (endo, doubleStr, etc.)
-				// For brevity, the same logic as previously described can be used here
-
-				// Loop through each position
-				for (int l = 0; l < MAXLENGTH; ++l) {
-					// Calculate differences for 5' end
-					for (int n1 = 0; n1 < 4; ++n1) {
-						int totalObsCurrent5p = 0, totalObsTmp5p = 0;
-
-						// Get total observations for each combination
-						for (int n2 = 0; n2 < 4; ++n2) {
-							totalObsCurrent5p += (*dimer5pToUse)[l][4 * n1 + n2];
-							totalObsTmp5p += (*dimer5pTmpToUse)[l][4 * n1 + n2];
-						}
-
-						// Calculate ratio differences for each match/mismatch type
-						for (int n2 = 0; n2 < 4; ++n2) {
-							double currentRatio5p = (totalObsCurrent5p == 0) ? static_cast<double>(0) : returnRatioFS((*dimer5pToUse)[l][4 * n1 + n2], totalObsCurrent5p, errorToRemove, failsafe);
-							double tmpRatio5p = (totalObsTmp5p == 0) ? static_cast<double>(0) : returnRatioFS((*dimer5pTmpToUse)[l][4 * n1 + n2], totalObsTmp5p, errorToRemove, failsafe);
-
-							// Store the absolute difference in ratios
-							difference5p[l][4 * n1 + n2] = fabs(currentRatio5p - tmpRatio5p);
-						}
-					}
-
-					// Repeat the same process for the 3' end
-					for (int n1 = 0; n1 < 4; ++n1) {
-						int totalObsCurrent3p = 0, totalObsTmp3p = 0;
-
-						// Get total observations for each combination
-						for (int n2 = 0; n2 < 4; ++n2) {
-							totalObsCurrent3p += (*dimer3pToUse)[l][4 * n1 + n2];
-							totalObsTmp3p += (*dimer3pTmpToUse)[l][4 * n1 + n2];
-						}
-
-						// Calculate ratio differences for each match/mismatch type
-						for (int n2 = 0; n2 < 4; ++n2) {
-
-							double currentRatio3p = (totalObsCurrent3p == 0) ? static_cast<double>(0) : returnRatioFS((*dimer3pToUse)[l][4 * n1 + n2], totalObsCurrent3p, errorToRemove, failsafe);
-							double tmpRatio3p = (totalObsTmp3p == 0) ? static_cast<double>(0) : returnRatioFS((*dimer3pTmpToUse)[l][4 * n1 + n2], totalObsTmp3p, errorToRemove, failsafe);
-
-							// Store the absolute difference in ratios
-							difference3p[l][4 * n1 + n2] = fabs(currentRatio3p - tmpRatio3p);
-						}
-					}
-				}
-
-				int seq_len = b->core.l_qseq;
-				int max_l   = std::min(seq_len, MAXLENGTH);
-
-				// 1) collect the l‐indices: first 5 and last 5 (but not exceeding seq_len)
-				std::vector<int> l_positions;
-				for (int j = 0; j < 5 && j < seq_len; ++j)
-					l_positions.push_back(j);
-				for (int j = std::max(5, seq_len - 5); j < seq_len; ++j)
-					l_positions.push_back(j);
-
-				// Assume convergence across ALL l_positions and i==7,8
-				bool allConverged = true;
-				bool allConvergedStopEarly = true;
-
-				for (int l : l_positions) {
-					for (int i : {7, 8}) {
-						// double thresh = critRange ? critThresh : precisionThresh;
-
-						// if *any* single check fails, we’re not fully converged
-						if ( critRange ) { // is entered only in meta mode
-							if (!(difference5p[l][i] < critThresh && difference3p[l][i] < critThresh))
-							{
-								// std::cerr << "critRange\t" << critRange << std::endl;
-								// std::cerr << "isConvergedLow\t" << isConvergedLow << std::endl;
-								// std::cerr << "processedAlns\t" << processedAlns << std::endl;
-								// std::cerr << "difference5p[l][i]\t" << difference5p[l][i] << std::endl;
-								// std::cerr << "difference3p[l][i]\t" << difference3p[l][i] << std::endl;
-								// std::cerr << "l\t" << l << std::endl;
-								// std::cerr << "i\t" << i << std::endl;
-								// std::cerr << "refNameStr\t" << refNameStr << std::endl;
-								// std::cerr << "\n" << std::endl;
-								allConverged = false;
-								break;
-							}
-						}
-						else {
-							if (!(difference5p[l][i] < precisionThresh && difference3p[l][i] < precisionThresh))
-							{
-								allConvergedStopEarly = false;
-								break;
-							}
-						}
-					}
-					if (!allConverged) break;  // no need to keep scanning
-					if (!allConvergedStopEarly) break;
-				}
-
-				// now set your flag if—and only if—all passed
-				if (critRange && allConverged) { // can only be true in meta mode
-					// std::cerr << "allConverged\t" << allConverged << std::endl;
-					isConvergedLow = true;
-					isConvergedOnce = true;
-					// break;
-				}
-
-				if (!critRange && allConvergedStopEarly) {
-					stopEarly = true;
-					// std::cerr << "stopEarly\t" << stopEarly << std::endl;
-					break;
-				}
-
-				typesOfDimer5pTmp = typesOfDimer5p;
-				typesOfDimer3pTmp = typesOfDimer3p;
-				typesOfDimer5p_cpgTmp = typesOfDimer5p_cpg;
-				typesOfDimer3p_cpgTmp = typesOfDimer3p_cpg;
-				typesOfDimer5p_noncpgTmp = typesOfDimer5p_noncpg;
-				typesOfDimer3p_noncpgTmp = typesOfDimer3p_noncpg;
-				typesOfDimer5pDoubleTmp = typesOfDimer5pDouble;
-				typesOfDimer3pDoubleTmp = typesOfDimer3pDouble;
-				typesOfDimer5pSingleTmp = typesOfDimer5pSingle;
-				typesOfDimer3pSingleTmp = typesOfDimer3pSingle;
-			}
-
-			processedAlns++;
+	// Iterate over the BAM records
+	while (sam_itr_next(fp, iter, b) >= 0) {
+	    
+	    if ( processedAlns >= 10000 ){
+		unsigned int numAlnsSafe = 1000;
+		float critThresh = precisionConverge;
+	    }
+	    
+	    bool critRange = (processedAlns <= numAlnsSafeRange);
+	    if(bam_is_unmapped(b)){
+		if(!quiet)
+		    cerr<<"skipping "<<bam_get_qname(b)<<" unmapped"<<endl;
+		continue;
+	    }
+	    if(bam_is_failed(b)){
+		if(!quiet)
+		    cerr<<"skipping "<<bam_get_qname(b)<<" failed"<<endl;
+		continue;
+	    }
+	    if(b->core.l_qseq < minLength){
+		if(!quiet)
+		    cerr<<"skipping "<<bam_get_qname(b)<<" too short"<<endl;
+		continue;
+	    }
+	    bool ispaired = bam_is_paired(b);
+	    bool isfirstpair = bam_is_read1(b);
+	    
+	    if(!paired){    
+		if(ispaired){
+		    if(!quiet)
+			cerr<<"skipping "<<bam_get_qname(b)<<" is paired (can be considered using the -paired flag)"<<endl;
+		    continue;
 		}
+	    }
+	    
+	    // update matrix
+	    countSubsPerRef(genomeFileB, genome, b, reconstructedReference, minQualBase, refFromFasta, refFromFasta_, h, bed, mask, ispaired, isfirstpair, typesOfDimer5p, typesOfDimer3p, typesOfDimer5p_cpg, typesOfDimer3p_cpg, typesOfDimer5p_noncpg, typesOfDimer3p_noncpg, typesOfDimer5pDouble, typesOfDimer3pDouble, typesOfDimer5pSingle, typesOfDimer3pSingle);
 
-		if ( metaMode ){
-			if ( isConvergedLow ){
-				generateDamageProfile(outDir, bamfiletopen, refNameStr, lengthMaxToPrint, dpFormat, hFormat, 
-									allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
-									genomeFileB, cpg, errorToRemove, failsafe, phred, 
-									typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
-									typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
-									typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
-									typesOfDimer3p_cpg, typesOfDimer3p_noncpg, mapped);
-			}
-			else{
-				generateDamageProfile(outDirUnsafe, bamfiletopen, refNameStr, lengthMaxToPrint, dpFormat, hFormat, 
-									allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
-									genomeFileB, cpg, errorToRemove, failsafe, phred, 
-									typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
-									typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
-									typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
-									typesOfDimer3p_cpg, typesOfDimer3p_noncpg, mapped);
-				}
+	    
+	    // Early stop mechanism: Check every numAlns alignments
+	    if (processedAlns % numAlns == 0 || ( critRange && processedAlns % numAlnsSafe == 0 && metaMode ) ) {
+		
+		
+		// std::cerr << "critRange\t" << critRange << std::endl;
+		// std::cerr << "isConvergedLow\t" << isConvergedLow << std::endl;
+		// std::cerr << "processedAlns\t" << processedAlns << std::endl;
+		// std::cerr << "refNameStr\t" << refNameStr << std::endl;
+		// std::cerr << "\n" << std::endl;
+		
+		// Initialize the vector to store changes
+		std::vector<std::vector<double>> difference5p(MAXLENGTH, std::vector<double>(16, 0.0));
+		std::vector<std::vector<double>> difference3p(MAXLENGTH, std::vector<double>(16, 0.0));
+		
+		// Choose the appropriate 5' dimer type for current and temporary matrices
+		const std::vector<std::vector<unsigned int>>* dimer5pToUse;
+		const std::vector<std::vector<unsigned int>>* dimer5pTmpToUse;
+		if (endo) {
+		    dimer5pToUse = doubleStr ? &typesOfDimer5pDouble : &typesOfDimer5pSingle;
+		    dimer5pTmpToUse = doubleStr ? &typesOfDimer5pDoubleTmp : &typesOfDimer5pSingleTmp;
+		} else {
+		    dimer5pToUse = &typesOfDimer5p;
+		    dimer5pTmpToUse = &typesOfDimer5pTmp;
 		}
-
+		if (genomeFileB) {
+		    dimer5pToUse = cpg ? &typesOfDimer5p_cpg : &typesOfDimer5p_noncpg;
+		    dimer5pTmpToUse = cpg ? &typesOfDimer5p_cpgTmp : &typesOfDimer5p_noncpgTmp;
+		}
+		
+		// Same for 3'
+		const std::vector<std::vector<unsigned int>>* dimer3pToUse;
+		const std::vector<std::vector<unsigned int>>* dimer3pTmpToUse;
+		if (endo) {
+		    dimer3pToUse = doubleStr ? &typesOfDimer3pDouble : &typesOfDimer3pSingle;
+		    dimer3pTmpToUse = doubleStr ? &typesOfDimer3pDoubleTmp : &typesOfDimer3pSingleTmp;
+		} else {
+		    dimer3pToUse = &typesOfDimer3p;
+		    dimer3pTmpToUse = &typesOfDimer3pTmp;
+		}
+		if (genomeFileB) {
+		    dimer3pToUse = cpg ? &typesOfDimer3p_cpg : &typesOfDimer3p_noncpg;
+		    dimer3pTmpToUse = cpg ? &typesOfDimer3p_cpgTmp : &typesOfDimer3p_noncpgTmp;
+		}
+		
+		
+		// Assign based on input arguments (endo, doubleStr, etc.)
+		// For brevity, the same logic as previously described can be used here
+		
+		// Loop through each position
+		for (int l = 0; l < MAXLENGTH; ++l) {
+		    // Calculate differences for 5' end
+		    for (int n1 = 0; n1 < 4; ++n1) {
+			int totalObsCurrent5p = 0, totalObsTmp5p = 0;
+			
+			// Get total observations for each combination
+			for (int n2 = 0; n2 < 4; ++n2) {
+			    totalObsCurrent5p += (*dimer5pToUse)[l][4 * n1 + n2];
+			    totalObsTmp5p += (*dimer5pTmpToUse)[l][4 * n1 + n2];
+			}
+			
+			// Calculate ratio differences for each match/mismatch type
+			for (int n2 = 0; n2 < 4; ++n2) {
+			    double currentRatio5p = (totalObsCurrent5p == 0) ? static_cast<double>(0) : returnRatioFS((*dimer5pToUse)[l][4 * n1 + n2], totalObsCurrent5p, errorToRemove, failsafe);
+			    double tmpRatio5p = (totalObsTmp5p == 0) ? static_cast<double>(0) : returnRatioFS((*dimer5pTmpToUse)[l][4 * n1 + n2], totalObsTmp5p, errorToRemove, failsafe);
+			    
+			    // Store the absolute difference in ratios
+			    difference5p[l][4 * n1 + n2] = fabs(currentRatio5p - tmpRatio5p);
+			}
+		    }
+		    
+		    // Repeat the same process for the 3' end
+		    for (int n1 = 0; n1 < 4; ++n1) {
+			int totalObsCurrent3p = 0, totalObsTmp3p = 0;
+			
+			// Get total observations for each combination
+			for (int n2 = 0; n2 < 4; ++n2) {
+			    totalObsCurrent3p += (*dimer3pToUse)[l][4 * n1 + n2];
+			    totalObsTmp3p += (*dimer3pTmpToUse)[l][4 * n1 + n2];
+			}
+			
+			// Calculate ratio differences for each match/mismatch type
+			for (int n2 = 0; n2 < 4; ++n2) {
+			    
+			    double currentRatio3p = (totalObsCurrent3p == 0) ? static_cast<double>(0) : returnRatioFS((*dimer3pToUse)[l][4 * n1 + n2], totalObsCurrent3p, errorToRemove, failsafe);
+			    double tmpRatio3p = (totalObsTmp3p == 0) ? static_cast<double>(0) : returnRatioFS((*dimer3pTmpToUse)[l][4 * n1 + n2], totalObsTmp3p, errorToRemove, failsafe);
+			    
+			    // Store the absolute difference in ratios
+			    difference3p[l][4 * n1 + n2] = fabs(currentRatio3p - tmpRatio3p);
+			}
+		    }
+		}
+		
+		int seq_len = b->core.l_qseq;
+		int max_l   = std::min(seq_len, MAXLENGTH);
+		
+		// 1) collect the l‐indices: first 5 and last 5 (but not exceeding seq_len)
+		std::vector<int> l_positions;
+		for (int j = 0; j < 5 && j < seq_len; ++j)
+		    l_positions.push_back(j);
+		for (int j = std::max(5, seq_len - 5); j < seq_len; ++j)
+		    l_positions.push_back(j);
+		
+		// Assume convergence across ALL l_positions and i==7,8
+		bool allConverged = true;
+		bool allConvergedStopEarly = true;
+		
+		for (int l : l_positions) {
+		    for (int i : {7, 8}) {
+			// double thresh = critRange ? critThresh : precisionThresh;
+			
+			// if *any* single check fails, we’re not fully converged
+			if ( critRange ) { // is entered only in meta mode
+			    if (!(difference5p[l][i] < critThresh && difference3p[l][i] < critThresh))
+				{
+				    // std::cerr << "critRange\t" << critRange << std::endl;
+				    // std::cerr << "isConvergedLow\t" << isConvergedLow << std::endl;
+				    // std::cerr << "processedAlns\t" << processedAlns << std::endl;
+				    // std::cerr << "difference5p[l][i]\t" << difference5p[l][i] << std::endl;
+				    // std::cerr << "difference3p[l][i]\t" << difference3p[l][i] << std::endl;
+				    // std::cerr << "l\t" << l << std::endl;
+				    // std::cerr << "i\t" << i << std::endl;
+				    // std::cerr << "refNameStr\t" << refNameStr << std::endl;
+				    // std::cerr << "\n" << std::endl;
+				    allConverged = false;
+				    break;
+				}
+			}
+			else {
+			    if (!(difference5p[l][i] < precisionThresh && difference3p[l][i] < precisionThresh))
+				{
+				    allConvergedStopEarly = false;
+				    break;
+				}
+			}
+		    }
+		    if (!allConverged) break;  // no need to keep scanning
+		    if (!allConvergedStopEarly) break;
+		}
+		
+		// now set your flag if—and only if—all passed
+		if (critRange && allConverged) { // can only be true in meta mode
+		    // std::cerr << "allConverged\t" << allConverged << std::endl;
+		    isConvergedLow = true;
+		    isConvergedOnce = true;
+		    // break;
+		}
+		
+		if (!critRange && allConvergedStopEarly) {
+		    stopEarly = true;
+		    // std::cerr << "stopEarly\t" << stopEarly << std::endl;
+		    break;
+		}
+		
+		typesOfDimer5pTmp = typesOfDimer5p;
+		typesOfDimer3pTmp = typesOfDimer3p;
+		typesOfDimer5p_cpgTmp = typesOfDimer5p_cpg;
+		typesOfDimer3p_cpgTmp = typesOfDimer3p_cpg;
+		typesOfDimer5p_noncpgTmp = typesOfDimer5p_noncpg;
+		typesOfDimer3p_noncpgTmp = typesOfDimer3p_noncpg;
+		typesOfDimer5pDoubleTmp = typesOfDimer5pDouble;
+		typesOfDimer3pDoubleTmp = typesOfDimer3pDouble;
+		typesOfDimer5pSingleTmp = typesOfDimer5pSingle;
+		typesOfDimer3pSingleTmp = typesOfDimer3pSingle;
+	    }
+	    
+	    processedAlns++;
+	}
+	
+	if ( metaMode ){
+	    if ( isConvergedLow ){
+		generateDamageProfile(outDir,
+				      file5pDefault,
+				      file3pDefault,
+				      bamfiletopen, refNameStr, lengthMaxToPrint, dpFormat, hFormat, 
+				      allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
+				      genomeFileB, cpg, errorToRemove, failsafe, phred, 
+				      typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
+				      typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
+				      typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
+				      typesOfDimer3p_cpg, typesOfDimer3p_noncpg, mapped);
+	    }
+	    else{
+		generateDamageProfile(outDirUnsafe,
+				      file5pDefault,
+				      file3pDefault,
+				      bamfiletopen, refNameStr, lengthMaxToPrint, dpFormat, hFormat, 
+				      allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
+				      genomeFileB, cpg, errorToRemove, failsafe, phred, 
+				      typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
+				      typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
+				      typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
+				      typesOfDimer3p_cpg, typesOfDimer3p_noncpg, mapped);
+	    }
+	}
+	
         // Clean up
         hts_itr_destroy(iter);
         bam_destroy1(b);
-
-		//std:cerr << "processedAlns\t" << processedAlns << std::endl;
+	
+	//std:cerr << "processedAlns\t" << processedAlns << std::endl;
     }
-
-	if ( classicMode ){
-		// if ( isConvergedOnce || totalMapped >= numAlnsSafeRange ){
-		generateDamageProfile(outDir, bamfiletopen, "classic", lengthMaxToPrint, dpFormat, hFormat, 
-							allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
-							genomeFileB, cpg, errorToRemove, failsafe, phred, 
-							typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
-							typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
-							typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
-							typesOfDimer3p_cpg, typesOfDimer3p_noncpg, totalMapped);
-		// }
-		// else{
-		// 	generateDamageProfile(outDirUnsafe, bamfiletopen, "classic", lengthMaxToPrint, dpFormat, hFormat, 
-		// 						allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
-		// 						genomeFileB, cpg, errorToRemove, failsafe, phred, 
-		// 						typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
-		// 						typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
-		// 						typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
-		// 						typesOfDimer3p_cpg, typesOfDimer3p_noncpg, totalMapped);
-		// 	}
-	}
-
+    
+    if ( classicMode ){
+	// if ( isConvergedOnce || totalMapped >= numAlnsSafeRange ){
+	generateDamageProfile(outDir,
+			      file5pDefault,
+			      file3pDefault,
+			      bamfiletopen, "classic", lengthMaxToPrint, dpFormat, hFormat, 
+			      allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
+			      genomeFileB, cpg, errorToRemove, failsafe, phred, 
+			      typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
+			      typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
+			      typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
+			      typesOfDimer3p_cpg, typesOfDimer3p_noncpg, totalMapped);
+	// }
+	// else{
+	// 	generateDamageProfile(outDirUnsafe, bamfiletopen, "classic", lengthMaxToPrint, dpFormat, hFormat, 
+	// 						allStr, singAnddoubleStr, doubleStr, singleStr, endo, 
+	// 						genomeFileB, cpg, errorToRemove, failsafe, phred, 
+	// 						typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
+	// 						typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
+	// 						typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
+	// 						typesOfDimer3p_cpg, typesOfDimer3p_noncpg, totalMapped);
+	// 	}
+    }
+    
     // Clean up
     hts_idx_destroy(idx);
     bam_hdr_destroy(h);
