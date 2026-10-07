@@ -34,27 +34,50 @@ This will generate the bam2prof executable in the src directory.
 
 ## Quick start
 
-Build, run on a BAM, and plot (replace `sample.bam` and `ref.fa`; `ref.fa` needs a `samtools faidx` index, `ref.fa.fai`):
+Build, then look at the damage patterns of the example in `testData/` (498 mtDNA reads, `MX182.b37_mtremap.bam`, with its reference `chrM.fa`).
+By default bam2prof computes only the damage profiles; the base composition and fragment lengths are opt-in (below).
 
 ```bash
 cd src && make && cd ..
 
-# 1. everything in one run: damage profiles, base composition with 12 bp of reference flank, fragment lengths
-./src/bam2prof -classic -paired -length 20 -comp -around 12 -fa ref.fa -is out/sample.is -o out/sample sample.bam
+# index the BAM once (optional: without an index bam2prof reads it sequentially and says so)
+lib/samtools/samtools index testData/MX182.b37_mtremap.bam
 
-# 2. one figure with all of it: damage (5' and 3'), DNA composition around the breaks, fragment lengths
-python3 src/plot_bam2prof.py out/sample --isize out/sample.is --title "My sample"
-#   -> out/sample/bam2prof_summary.png and .pdf
+# 1. the damage profile (substitution frequencies along the first 20 bp of each fragment end)
+./src/bam2prof -classic -length 20 -o out/MX182 testData/MX182.b37_mtremap.bam
+
+# 2. plot it
+python3 src/plot_bam2prof.py out/MX182 --title "MX182 (mtDNA)"
+#   -> out/MX182/bam2prof_summary.png and .pdf
 ```
 
-The summary leaves out any panel it has no data for (no `-comp` run: no composition panels; no `--isize`: no fragment length panel).
-With `-fa`, the damage panels show non-CpG sites only; for damage over all sites, run without `-fa` (and without `-comp`'s flank).
+<img width="1240" height="580" alt="damage profile of the MX182 example: C to T at the 5' end, G to A at the 3' end" src="img/example_mtdna.png" />
+
+The excess of C→T at the 5' end and of G→A at the 3' end (about 19% and 21% at the terminal base here) is the typical damage
+pattern of ancient DNA. For your own data, replace the BAM (and, below, the reference) with yours.
+
+**Optional: DNA composition around the breaks, and fragment lengths.** Both are computed only when you ask for them:
+
+```bash
+lib/samtools/samtools faidx testData/chrM.fa         # the reference needs an index (once)
+
+# -comp: base composition at the fragment ends, with -fa also 12 bp of reference flanking each end
+# -is:   fragment lengths (-paired also counts read pairs)
+./src/bam2prof -classic -length 20 -comp -around 12 -fa testData/chrM.fa -paired -is out/MX182_full.is \
+    -o out/MX182_full testData/MX182.b37_mtremap.bam
+
+python3 src/plot_bam2prof.py out/MX182_full --isize out/MX182_full.is --title "MX182 (mtDNA)"
+#   -> damage (A), composition around the breaks (B) and fragment lengths (C) in one figure
+```
+
+The summary figure has a panel for each result that is present: no `-comp` run, no composition panels; no `--isize`, no fragment length panel.
+With `-fa`, the damage panels show non-CpG sites only; for damage over all sites, run without `-fa`.
 Each panel can also be drawn on its own with `--only`:
 
 ```bash
-python3 src/plot_bam2prof.py out/sample --only damage      --title "My sample"   # -> out/sample/bam2prof_damage.png
-python3 src/plot_bam2prof.py out/sample --only composition --title "My sample"   # -> out/sample/bam2prof_composition.png
-python3 src/plot_bam2prof.py out/sample --only isize --isize out/sample.is       # -> out/sample/bam2prof_isize.png
+python3 src/plot_bam2prof.py out/MX182_full --only damage      --title "MX182 (mtDNA)"   # -> out/MX182_full/bam2prof_damage.png
+python3 src/plot_bam2prof.py out/MX182_full --only composition --title "MX182 (mtDNA)"   # -> out/MX182_full/bam2prof_composition.png
+python3 src/plot_bam2prof.py out/MX182_full --only isize --isize out/MX182_full.is       # -> out/MX182_full/bam2prof_isize.png
 ```
 
 `python3 src/plot_bam2prof.py -h` lists all the options.
