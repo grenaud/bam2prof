@@ -40,11 +40,8 @@ By default bam2prof computes only the damage profiles; the base composition and 
 ```bash
 cd src && make && cd ..
 
-# index the BAM once (optional: without an index bam2prof reads it sequentially and says so)
-lib/samtools/samtools index testData/MX182.b37_mtremap.bam
-
 # 1. the damage profile (substitution frequencies along the first 20 bp of each fragment end)
-./src/bam2prof -classic -length 20 -o out/MX182 testData/MX182.b37_mtremap.bam
+./src/bam2prof  -length 20 -o out/MX182 testData/MX182.b37_mtremap.bam
 
 # 2. plot it
 python3 src/plot_bam2prof.py out/MX182 --title "MX182 (mtDNA)"
