@@ -8,7 +8,9 @@ bam2prof is a tool designed to analyze BAM files and generate substitution profi
 - Substitution Profiling: Computes substitution rates at both 5' and 3' ends of reads to assess DNA damage patterns.
 - Customizable Parameters: Allows users to set minimum base quality scores, minimum read lengths, and specify the length of the profile to generate.
  
- <img width="6000" height="2400" alt="denisova21_ancient_sampled_5_classic_n50191__combined_plot_with_legend" src="https://github.com/user-attachments/assets/eac44636-ee1e-44f3-bf4d-b560f6004a1d" />
+<img width="1600" height="920" alt="bam2prof summary: damage at both fragment ends, base composition around the breaks, fragment lengths (Loschbour chr2)" src="img/example_summary.png" />
+
+*Loschbour chr2 (74.5M reads): damage at both fragment ends (A), base composition around the breaks (B), fragment lengths (C). See "Example output" below.*
 
 ## Requirements
 
@@ -142,13 +144,13 @@ This command will produce two files:
 Real data: Loschbour chr2 (74.5M reads, one thread). The damage profile took 3.6 minutes and 27 MB of memory; adding the
 base composition with 12 bp of reference flank (`-comp -around 12 -fa`) took 7.5 minutes and 37 MB.
 
-**Summary figure** (`src/plot_bam2prof.py`): **A** damage at both fragment ends (all 12 substitution types, C→T and G→A
+**Summary figure** (`src/plot_bam2prof.py`, shown at the top): **A** damage at both fragment ends (all 12 substitution types, C→T and G→A
 highlighted; non-CpG sites here because `-fa` was used), **B** DNA composition around the breaks (the shaded band is reference
 sequence outside the fragment, the dashed line is 25%), **C** fragment lengths of merged / single-end molecules (74M, median 68 bp)
 and properly paired fragments (0.3M, median 194 bp). Add `--isize-log` to see the small properly paired class next to the much
 larger merged one.
 
-<img width="1600" height="920" alt="summary: damage, base composition around the fragment ends, fragment length distribution" src="img/example_summary.png" />
+(The figure at the top of this page.)
 
 <details><summary>The individual plots</summary>
 
