@@ -75,11 +75,11 @@ void  mdString2Vector(const char * mdFieldToParse,vector<mdField> &toReturn){
 */
 static int maxlength=1024;
 static char *reconstructedTemp=(char*)calloc(maxlength,1);
-void  reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int> > &smart){
-  smart.first->l = 0; 
+bool  reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int> > &smart){
+  smart.first->l = 0;
   smart.second.clear();
   memset(reconstructedTemp,0,maxlength);
-  
+
   static vector<mdField> parsedMD;
     //initialize
     // int editDist=-1;
@@ -104,10 +104,11 @@ void  reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int>
     //cerr<<"reconstructRefWithPosOnReadHTS "<<(mdptr+1)<<endl;
     // cerr<<"rg1 "<<rgptr<<endl;
     // cout<<"isize "<<isize<<endl;
-            
+
     if(mdptr==NULL){
-	cerr<<"ReconsReferenceHTSLIB: Cannot get MD tag from "<<bam_get_qname(b)<<endl;
-	exit(1);
+	//a small fraction of reads in real-world BAMs (e.g. ones touched by a local realigner) can lack an MD
+	//tag; skip just this read rather than aborting the whole run
+	return false;
     }
 
     int32_t   n_cigar_op = bam_get_n_cigar_op(b);
@@ -189,4 +190,6 @@ void  reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int>
 	cerr << "Could not determine the positions for the read "<<bam_get_qname(b) << endl;
 	exit(1);
     }
+
+    return true;
 }

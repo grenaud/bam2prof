@@ -67,8 +67,107 @@ private:
     struct stat buf;
     /* genome fasta file file descriptor */
     int fd;
-    /* the mmap (memory mapped) pointer */
-    char *mapptr;
+    /* size in bytes of the fasta file */
+    int64_t fileSize;
+    /* if true map the fasta a window of windowBases bases at a time, else map all of it on first use */
+    bool windowed;
+    int64_t windowBases;
+    /* bases kept mapped before the requested coordinate when a new window is mapped, so reads that
+       step slightly backwards do not trigger a remap */
+    static const int64_t windowMargin=1000000;
+
+    /* a memory mapped stretch of the fasta file: file bytes [lo,hi) are at ptr (lo is page-aligned),
+       which hold bases [startBase,endBase) of the chromosome whose faidx offset is chrOffset */
+    struct Window {
+	char *ptr;
+	int64_t lo, hi;
+	uint64_t chrOffset;
+	int64_t startBase, endBase;
+	Window():ptr(NULL),lo(0),hi(0),chrOffset(0),startBase(0),endBase(0){}
+	bool covers(int64_t first, int64_t last) const { return ptr!=NULL && first>=lo && last<hi; }
+    };
+    /* the window being read from, and the one prefetched after it (windowed mode only) */
+    Window cur, nxt;
+
+    /* file byte offset of base 'index' (0-based) of the chromosome described by faidx */
+    static int64_t byteOffset(const faidx1_t * faidx, int64_t index){
+	return (int64_t)faidx->offset + index / faidx->line_blen * faidx->line_len + index % faidx->line_blen;
+    }
+
+    static void unmapWindow(Window & w){
+	if(w.ptr!=NULL && munmap(w.ptr,w.hi-w.lo) == -1){
+	    perror("Error un-mmapping the file");
+	}
+	w=Window();
+    }
+
+    void unmapAll(){
+	unmapWindow(cur);
+	unmapWindow(nxt);
+    }
+
+    /* maps file bytes [lo,hi) (lo is rounded down to a page boundary) into w; if prefetch is set the
+       kernel is asked to start reading the pages in right away */
+    void mapBytes(Window & w, int64_t lo, int64_t hi, bool prefetch){
+	int64_t page=sysconf(_SC_PAGESIZE);
+	lo=(lo/page)*page;
+	if(hi>fileSize) hi=fileSize;
+	char * p = (char*)mmap(0, hi-lo, PROT_READ, MAP_SHARED, fd, lo);
+	if (p == MAP_FAILED)
+	    {
+		close(fd);
+		perror("Error mmapping the file");
+		exit(EXIT_FAILURE);
+	    }
+	if(prefetch) madvise(p, hi-lo, MADV_WILLNEED);
+	w.ptr=p;
+	w.lo=lo;
+	w.hi=hi;
+    }
+
+    /* maps bases [startBase,endBase) of the chromosome into w */
+    void mapBases(Window & w, const faidx1_t * faidx, int64_t startBase, int64_t endBase, bool prefetch){
+	mapBytes(w, byteOffset(faidx,startBase), byteOffset(faidx,endBase-1)+1, prefetch);
+	w.chrOffset=faidx->offset;
+	w.startBase=startBase;
+	w.endBase=endBase;
+    }
+
+    /* makes sure the bases [index,index+length) of the chromosome are mapped and returns the window
+       holding them. In windowed mode, once reads reach the middle of the current window the following
+       window is mapped (and prefetched) so it is ready by the time reads cross into it; when they do, the
+       old window is released, so at most two windows are mapped at once. */
+    const Window * ensureMapped(const faidx1_t * faidx, int64_t index, unsigned int length){
+	int64_t first=byteOffset(faidx,index);
+	int64_t last =byteOffset(faidx,index+length-1);
+	if(!windowed){
+	    if(!cur.ptr) mapBytes(cur,0,fileSize,false);
+	    return &cur;
+	}
+	if(!cur.covers(first,last)){
+	    if(nxt.covers(first,last)){ //crossed into the prefetched window
+		unmapWindow(cur);
+		cur=nxt;
+		nxt=Window();
+	    }else{ //first lookup, or a jump (new chromosome, unsorted reads): start over around the request
+		unmapAll();
+		int64_t startBase=index-windowMargin;
+		if(startBase<0) startBase=0;
+		int64_t endBase=startBase+windowBases;
+		if(endBase<index+(int64_t)length) endBase=index+length;
+		if(endBase>faidx->len) endBase=faidx->len;
+		mapBases(cur,faidx,startBase,endBase,false);
+	    }
+	}
+	//halfway through the current window: bring in the next one
+	if(nxt.ptr==NULL && cur.chrOffset==faidx->offset && cur.endBase<faidx->len &&
+	   index >= cur.startBase + (cur.endBase-cur.startBase)/2){
+	    int64_t endBase=cur.endBase+windowBases;
+	    if(endBase>faidx->len) endBase=faidx->len;
+	    mapBases(nxt,faidx,cur.endBase,endBase,true);
+	}
+	return &cur;
+    }
     /** reads an fill a string */
     bool readline(gzFile in,string& line)
     {
@@ -86,7 +185,7 @@ public:
     /** constructor 
      * @param fasta: the path to the genomic fasta file indexed with samtools faidx
      */
-    IndexedGenome(const char* fasta):fd(-1),mapptr(NULL)
+    IndexedGenome(const char* fasta):fd(-1),fileSize(0),windowed(false),windowBases(10000000)
     {
 	string faidx(fasta);
 	//cout<<fasta<<endl;
@@ -136,23 +235,26 @@ public:
 		perror("Error opening file for reading");
 		exit(EXIT_FAILURE);
 	    }
-	/* open a memory mapped file associated to this fasta file descriptor */
-	mapptr = (char*)mmap(0, buf.st_size, PROT_READ, MAP_SHARED, fd, 0);
-	if (mapptr == MAP_FAILED)
-	    {
-		close(fd);
-		perror("Error mmapping the file");
-		exit(EXIT_FAILURE);
-	    }
+	fileSize=buf.st_size;
+	/* the fasta is memory mapped lazily, on the first lookup, see setWindowed() */
+    }
+
+    /** chooses how the fasta is memory mapped. Call before the first lookup.
+     * @param sorted: true if the reads come in coordinate order, the reference is then mapped
+     *                windowBases bases at a time and the previous window is released; false maps the whole fasta
+     * @param bases: window size in bases
+     */
+    void setWindowed(bool sorted, int64_t bases=10000000)
+    {
+	unmapAll();
+	windowed=sorted;
+	windowBases=bases;
     }
     /* destructor */
     ~IndexedGenome()
     {
-	/* close memory mapped map */
-	if(mapptr!=NULL && munmap(mapptr,buf.st_size) == -1)
-	    {
-		perror("Error un-mmapping the file");
-	    }
+	/* close memory mapped maps */
+	unmapAll();
 	/* dispose fasta file descriptor */
 	if(fd!=-1) close(fd);
     }
@@ -161,19 +263,17 @@ public:
     /* return the base at position 'index' for the chromosome indexed by faidx */
     string returnStringCoord(const FaidxPtr faidx,int64_t index, unsigned int length){
 
-	int64_t index2=index;
-	// int64_t st=index2;
-	// int64_t en=index2+length;
+	if(length==0) return "";
+	if(byteOffset(faidx,index+length-1) >= fileSize){
+	    return string(length,'N'); //past the end of the file, nothing to map
+	}
+	const Window * w=ensureMapped(faidx,index,length);
+
 	string strToReturn="";
-	
+	strToReturn.reserve(length);
 	for(unsigned int j=0;j<length;j++){ //for each char
-	    long pos= faidx->offset +
-		index2 / faidx->line_blen * faidx->line_len +
-		index2 % faidx->line_blen
-		;
-	    //cout<<char(toupper(mapptr[pos]));
-	    strToReturn+=char(toupper(mapptr[pos]));
-	    index2++;
+	    int64_t pos=byteOffset(faidx,index+j);
+	    strToReturn+=char(toupper(w->ptr[pos-w->lo]));
 	}
 	
 	return strToReturn;
@@ -194,6 +294,21 @@ double dbl2log(const double d,bool phred);
 void countSubsPerRef(bool genomeFileB, IndexedGenome* genome, const bam1_t  * b, std::pair<kstring_t*, std::vector<int>>& reconstructedReference, const int & minQualBase, string & refFromFasta, string & refFromFasta_, const bam_hdr_t *h, void *bed,bool mask, bool ispaired, bool isfirstpair, std::vector<std::vector<unsigned int>>& typesOfDimer5p, std::vector<std::vector<unsigned int>>& typesOfDimer3p, std::vector<std::vector<unsigned int>>& typesOfDimer5p_cpg, std::vector<std::vector<unsigned int>>& typesOfDimer3p_cpg, std::vector<std::vector<unsigned int>>& typesOfDimer5p_noncpg, std::vector<std::vector<unsigned int>>& typesOfDimer3p_noncpg, std::vector<std::vector<unsigned int>>& typesOfDimer5pDouble, std::vector<std::vector<unsigned int>>& typesOfDimer3pDouble, std::vector<std::vector<unsigned int>>& typesOfDimer5pSingle, std::vector<std::vector<unsigned int>>& typesOfDimer3pSingle);
 
 vector<vector<unsigned int>> initializeDimerVectors(int maxLength, int innerSize);
+
+//counts the reference nucleotide composition flanking a read's aligned span (mapDamage-style), needs -fa
+void countBaseCompositionFlank(IndexedGenome* genome, const bam1_t * b, const bam_hdr_t *h, int aroundFlank, bool ispaired, bool isfirstpair, std::vector<std::vector<unsigned int>>& baseComp5pFlank, std::vector<std::vector<unsigned int>>& baseComp3pFlank);
+
+void generateBaseCompositionProfile( const std::string& outDir,
+				      const std::string& bamfiletopen,
+				      const std::string& refId,
+				      int lengthMaxToPrint,
+				      int aroundFlank,
+				      bool genomeFileB,
+				      const std::vector<std::vector<unsigned int>>& typesOfDimer5p,
+				      const std::vector<std::vector<unsigned int>>& typesOfDimer3p,
+				      const std::vector<std::vector<unsigned int>>& baseComp5pFlank,
+				      const std::vector<std::vector<unsigned int>>& baseComp3pFlank,
+				      uint64_t mapped);
 
 void generateDamageProfile( const std::string& outDir,
 			    const std::string& file5pparam,

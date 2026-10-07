@@ -53,6 +53,18 @@ int main (int argc, char *argv[]) {
     unsigned int convergeUntil=100000;
     //string refId;
 
+    bool isizeB=false;
+    bool isizeAllPairs=false; //-is-allpaired: count every read1 of a pair, not only properly paired ones
+    string isizeFile;
+    map<int32_t,uint64_t> insertSizeCounts;       //all fragments: properly paired + merged/single-end
+    map<int32_t,uint64_t> insertSizeCountsPaired; //properly paired fragments only (every pair with -is-allpaired)
+    map<int32_t,uint64_t> insertSizeCountsMerged; //merged / single-end molecules only
+
+    bool compFlag=false;
+    int aroundFlank=10;
+    vector< vector<unsigned int> > baseComp5pFlank; //nt composition upstream  of the read's 5' end (from the reference, needs -fa)
+    vector< vector<unsigned int> > baseComp3pFlank; //nt composition downstream of the read's 3' end (from the reference, needs -fa)
+
 	//#define DEBUG
 
     string usage=string(""+string(argv[0])+" <options> <mode> [in BAM file]"+
@@ -79,6 +91,10 @@ int main (int argc, char *argv[]) {
 			"\t\t"+"-precision\t\tSet minimum precision for substitution frequency computation (Default: All alignments [= 0.0]; Speed up by setting precision to either 0.01, 0.001, ... ) \n"+
 			"\t\t"+"-minAligned\t\tNumber of aligned sequences after which substitution patterns are checked for converging (Default: "+stringify( numAlns )+")\n"+
 			"\t\t"+"-ref-id\t\t\tSpecify reference ID; if multiple references: Provide comma seperated list (no spaces!) ( Default: Not Set ) \n"+
+			"\t\t"+"-is\t[output file]\tAlso compute the fragment size distribution over the same reads used for the profile and write it there as \"count length\" per line, sorted by length. Properly paired fragments are reported as abs(TLEN) of read1 (requires -paired), merged / single-end molecules as their SEQ length. The same counts are also written separately to \"<file>.properly_paired\" and \"<file>.merged\" (Default: not computed) \n"+
+			"\t\t"+"-is-allpaired\t\tWith -is, count every paired read1 as a fragment, not only properly paired ones; the paired counts are then written to \"<file>.paired\" instead of \"<file>.properly_paired\" (Default: "+booleanAsString( isizeAllPairs )+")\n"+
+			"\t\t"+"-comp\t\t\tAlso compute a base composition profile (A/C/G/T frequency per position) written as _5p_comp.prof/_3p_comp.prof next to the substitution profiles. Without -fa, only positions inside the fragment are reported; with -fa, it also reports "+stringify(aroundFlank)+" bp of reference sequence flanking the fragment on either side  (Default: "+booleanAsString( compFlag )+") \n"+
+			"\t\t"+"-around\t[N]\t\tNumber of reference bp to report outside the fragment for -comp; only used together with -fa (Default: "+stringify(aroundFlank)+")\n"+
 
 			"\n\n\tYou can specify either one of the two:\n"+
 			"\t\t"+"-single\t\t\tUse the deamination profile of a single strand library  (Default: "+booleanAsString( singleStr )+")\n"+
@@ -235,6 +251,29 @@ int main (int argc, char *argv[]) {
             continue;
         }
 
+        if(string(argv[i]) == "-is-allpaired" ){
+	    isizeAllPairs = true;
+            continue;
+        }
+
+        if(string(argv[i]) == "-is" ){
+	    isizeFile = string(argv[i+1]);
+	    isizeB    = true;
+	    i++;
+            continue;
+        }
+
+        if(string(argv[i]) == "-comp" ){
+	    compFlag=true;
+            continue;
+        }
+
+        if(string(argv[i]) == "-around" ){
+	    aroundFlank=destringify<int>(argv[i+1]);
+	    i++;
+            continue;
+        }
+
         if(string(argv[i]) == "-ref-id" ){
             string refIdList = string(argv[i+1]);  // Capture the comma-separated list
             stringstream ss(refIdList);
@@ -357,13 +396,20 @@ int main (int argc, char *argv[]) {
 
     }
     if(!bedfilename.empty()){
-	bed = bed_read(bedfilename.c_str()); 
+	bed = bed_read(bedfilename.c_str());
     }
 
+    if(compFlag && aroundFlank<0){
+	cerr<<"Error: -around cannot be negative"<<endl;
+	return 1;
+    }
+
+    if(compFlag && !genomeFileB){
+	cerr<<"Warning: -comp without -fa will only report base composition inside the fragment, not the flanking reference bases"<<endl;
+    }
 
     if(genomeFileB){
 	genome=new IndexedGenome(genomeFile.c_str());
-	cerr<<genomeFile<<" mapped into memory"<<endl;
     }
     
     // Define the output path for the profiles that have not converged
@@ -398,13 +444,15 @@ int main (int argc, char *argv[]) {
     // }
     
 	
-    string bamfiletopen = string( argv[ argc-1 ] );
+    string bamPath = string( argv[ argc-1 ] );
+    bool fromStdin = (bamPath == "-" || bamPath == "/dev/stdin"); //piped input: "-" is htslib's name for stdin
+    string bamfiletopen = fromStdin ? string("stdin") : bamPath;   //used to name the output files
     
     bam_hdr_t *h;
     samFile  *fp;
     hts_idx_t *idx;
     
-    fp = sam_open_format(bamfiletopen.c_str(), "r", NULL); 
+    fp = sam_open_format(bamPath.c_str(), "r", NULL); 
     if(fp == NULL){
 	cerr << "Could not open input BAM file"<< bamfiletopen << endl;
 	return 1;
@@ -416,11 +464,31 @@ int main (int argc, char *argv[]) {
 	return 1;
     }
 
+    if(genomeFileB){
+	//coordinate sorted BAM: the reads only move forward along each chromosome, so map the reference
+	//10Mb at a time instead of all of it; otherwise map the whole fasta
+	kstring_t so = KS_INITIALIZE;
+	bool sorted = (sam_hdr_find_tag_hd(h, "SO", &so) == 0 && so.s != NULL && string(so.s) == "coordinate");
+	ks_free(&so);
+	genome->setWindowed(sorted);
+	if(sorted){
+	    cerr<<genomeFile<<": BAM is coordinate sorted, reference will be memory mapped 10Mb at a time"<<endl;
+	}else{
+	    cerr<<genomeFile<<": BAM is not flagged as coordinate sorted, whole reference will be memory mapped"<<endl;
+	}
+    }
+
     // Load the index for the BAM file
-    idx = sam_index_load(fp, bamfiletopen.c_str());
-    if(idx == NULL){
-	std::cerr << "Could not load index for " << bamfiletopen << std::endl;
-	return 1;
+    // Without an index (piped input, or a BAM that is not coordinate sorted) the reads are processed
+    // front to back in one pass instead of one chromosome at a time
+    idx = fromStdin ? NULL : sam_index_load(fp, bamPath.c_str());
+    bool streaming = (idx == NULL);
+    if(streaming){
+	if(!classicMode){
+	    std::cerr << "Error: -meta and -ref need an indexed, coordinate sorted BAM file; without an index only -classic can be used" << std::endl;
+	    return 1;
+	}
+	std::cerr << (fromStdin ? "Reading from stdin" : "No index found for "+bamPath) << ", processing the reads sequentially" << std::endl;
     }
     
     
@@ -475,6 +543,13 @@ int main (int argc, char *argv[]) {
 	//}
     }
 
+    baseComp5pFlank = vector< vector<unsigned int> >();
+    baseComp3pFlank = vector< vector<unsigned int> >();
+    for(int l=0;l<aroundFlank;l++){
+	baseComp5pFlank.push_back( vector<unsigned int> ( 4,0 ) );
+	baseComp3pFlank.push_back( vector<unsigned int> ( 4,0 ) );
+    }
+
     // Initiating the early stop rule for the "classic" mode:
 
     vector< vector<unsigned int> > typesOfDimer5pTmp; //5' deam rates
@@ -513,12 +588,13 @@ int main (int argc, char *argv[]) {
     float critThresh = precisionConverge;
 
     // Iterate over each reference 
-    for (int i = 0; i < h->n_targets; i++) {
+    // streaming: a single pass over every read, in file order, instead of one iterator per chromosome
+    for (int i = 0; i < (streaming ? 1 : h->n_targets); i++) {
 
 	unsigned int processedAlns = 1;
 
 	//std::cerr << "iterating targets" << std::endl;
-	const char* refName = h->target_name[i];
+	const char* refName = streaming ? "classic" : h->target_name[i];
 	std::string refNameStr(refName);
 
 	if ( !classicMode && refIdsList.size() > 0 ){
@@ -557,13 +633,20 @@ int main (int argc, char *argv[]) {
 		typesOfDimer3pSingle.push_back( vector<unsigned int> ( 16,0 ) );
 		//}
 	    }
+
+	    baseComp5pFlank = vector< vector<unsigned int> >();
+	    baseComp3pFlank = vector< vector<unsigned int> >();
+	    for(int l=0;l<aroundFlank;l++){
+		baseComp5pFlank.push_back( vector<unsigned int> ( 4,0 ) );
+		baseComp3pFlank.push_back( vector<unsigned int> ( 4,0 ) );
+	    }
 	}
 
-	hts_itr_t *iter = sam_itr_queryi(idx, i, 0, h->target_len[i]);
+	hts_itr_t *iter = streaming ? NULL : sam_itr_queryi(idx, i, 0, h->target_len[i]);
 	bam1_t *b = bam_init1();
 	
 	// Check if iter is null
-	if (iter == NULL) {
+	if (!streaming && iter == NULL) {
 	    std::cerr << "Could not create iterator for target " << h->target_name[i] << std::endl;
 	    continue;
 	}
@@ -579,15 +662,17 @@ int main (int argc, char *argv[]) {
 
 	// Get the number of mapped reads for the current reference 'i'
 	uint64_t mapped = 0, unmapped = 0;
-	hts_idx_get_stat(idx, i, &mapped, &unmapped);
-	totalMapped += mapped;
+	if(!streaming){
+	    hts_idx_get_stat(idx, i, &mapped, &unmapped);
+	    totalMapped += mapped;
+	}
 	
 	bool isConvergedLow = false;  // Flag to indicate if all changes are small; Also tells us if converged at all or not
 	
 	stopEarly = false; // for any mode but references where at least 10 Mio have aligned PER REFERENCE
 		
 	// Iterate over the BAM records
-	while (sam_itr_next(fp, iter, b) >= 0) {
+	while ( (streaming ? sam_read1(fp, h, b) : sam_itr_next(fp, iter, b)) >= 0) {
 	    
 	    if ( processedAlns >= 10000 ){
 		unsigned int numAlnsSafe = 1000;
@@ -600,6 +685,7 @@ int main (int argc, char *argv[]) {
 		    cerr<<"skipping "<<bam_get_qname(b)<<" unmapped"<<endl;
 		continue;
 	    }
+	    if(streaming) totalMapped++; //same count the index reports: every read not flagged unmapped
 	    if(bam_is_failed(b)){
 		if(!quiet)
 		    cerr<<"skipping "<<bam_get_qname(b)<<" failed"<<endl;
@@ -621,6 +707,27 @@ int main (int argc, char *argv[]) {
 		}
 	    }
 	    
+	    // fragment size distribution (mirrors the standalone insertsize/insize tool)
+	    if(isizeB){
+		if(ispaired){
+		    if(isfirstpair && (isizeAllPairs || (b->core.flag & BAM_FPROPER_PAIR))){ //properly paired fragments only, unless -is-allpaired
+			int32_t isize = b->core.isize;
+			if(isize != 0){ //skip mates on different contigs / unmapped mates
+			    insertSizeCounts[ abs(isize) ]++;
+			    insertSizeCountsPaired[ abs(isize) ]++;
+			}
+		    }//read2 is skipped: each fragment is counted once, via read1
+		}else{ //merged (collapsed) or single-end molecule: the read is the whole fragment
+		    insertSizeCounts[ b->core.l_qseq ]++;
+		    insertSizeCountsMerged[ b->core.l_qseq ]++;
+		}
+	    }
+
+	    // base composition of the reference flanking the fragment ( needs -fa)
+	    if(compFlag && genomeFileB){
+		countBaseCompositionFlank(genome, b, h, aroundFlank, ispaired, isfirstpair, baseComp5pFlank, baseComp3pFlank);
+	    }
+
 	    // update matrix
 	    countSubsPerRef(genomeFileB, genome, b, reconstructedReference, minQualBase, refFromFasta, refFromFasta_, h, bed, mask, ispaired, isfirstpair, typesOfDimer5p, typesOfDimer3p, typesOfDimer5p_cpg, typesOfDimer3p_cpg, typesOfDimer5p_noncpg, typesOfDimer3p_noncpg, typesOfDimer5pDouble, typesOfDimer3pDouble, typesOfDimer5pSingle, typesOfDimer3pSingle);
 
@@ -805,6 +912,9 @@ int main (int argc, char *argv[]) {
 				      typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
 				      typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
 				      typesOfDimer3p_cpg, typesOfDimer3p_noncpg, mapped);
+		if(compFlag){
+		    generateBaseCompositionProfile(outDir, bamfiletopen, refNameStr, lengthMaxToPrint, aroundFlank, genomeFileB, typesOfDimer5p, typesOfDimer3p, baseComp5pFlank, baseComp3pFlank, mapped);
+		}
 	    }
 	    else{
 		generateDamageProfile(outDirUnsafe,
@@ -815,11 +925,14 @@ int main (int argc, char *argv[]) {
 				      genomeFileB, cpg, errorToRemove, failsafe, phred, 
 				      typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
 				      typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
-				      typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
+				      typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p,
 				      typesOfDimer3p_cpg, typesOfDimer3p_noncpg, mapped);
+		if(compFlag){
+		    generateBaseCompositionProfile(outDirUnsafe, bamfiletopen, refNameStr, lengthMaxToPrint, aroundFlank, genomeFileB, typesOfDimer5p, typesOfDimer3p, baseComp5pFlank, baseComp3pFlank, mapped);
+		}
 	    }
 	}
-	
+
         // Clean up
         hts_itr_destroy(iter);
         bam_destroy1(b);
@@ -837,8 +950,11 @@ int main (int argc, char *argv[]) {
 			      genomeFileB, cpg, errorToRemove, failsafe, phred, 
 			      typesOfDimer5pSingle, typesOfDimer5pDouble, typesOfDimer5p, 
 			      typesOfDimer5p_cpg, typesOfDimer5p_noncpg, 
-			      typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p, 
+			      typesOfDimer3pSingle, typesOfDimer3pDouble, typesOfDimer3p,
 			      typesOfDimer3p_cpg, typesOfDimer3p_noncpg, totalMapped);
+	if(compFlag){
+	    generateBaseCompositionProfile(outDir, bamfiletopen, "classic", lengthMaxToPrint, aroundFlank, genomeFileB, typesOfDimer5p, typesOfDimer3p, baseComp5pFlank, baseComp3pFlank, totalMapped);
+	}
 	// }
 	// else{
 	// 	generateDamageProfile(outDirUnsafe, bamfiletopen, "classic", lengthMaxToPrint, dpFormat, hFormat, 
@@ -850,7 +966,31 @@ int main (int argc, char *argv[]) {
 	// 						typesOfDimer3p_cpg, typesOfDimer3p_noncpg, totalMapped);
 	// 	}
     }
-    
+
+    if(isizeB){
+	std::ofstream isizeFP(isizeFile.c_str());
+	if(!isizeFP){
+	    std::cerr << "Could not open insert size output file " << isizeFile << std::endl;
+	    return 1;
+	}
+	for(const auto & lengthAndCount : insertSizeCounts){
+	    isizeFP << lengthAndCount.second << "\t" << lengthAndCount.first << "\n";
+	}
+	isizeFP.close();
+	const pair<string, const map<int32_t,uint64_t>*> perClass[2] = { make_pair(isizeFile+(isizeAllPairs ? ".paired" : ".properly_paired"), &insertSizeCountsPaired),
+									 make_pair(isizeFile+".merged", &insertSizeCountsMerged) };
+	for(const auto & fileAndCounts : perClass){
+	    std::ofstream classFP(fileAndCounts.first.c_str());
+	    if(!classFP){
+		std::cerr << "Could not open insert size output file " << fileAndCounts.first << std::endl;
+		return 1;
+	    }
+	    for(const auto & lengthAndCount : *fileAndCounts.second){
+		classFP << lengthAndCount.second << "\t" << lengthAndCount.first << "\n";
+	    }
+	}
+    }
+
     // Clean up
     hts_idx_destroy(idx);
     bam_hdr_destroy(h);
