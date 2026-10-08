@@ -14,7 +14,14 @@ bam2prof is a tool designed to analyze BAM files and generate substitution profi
 
 ## Requirements
 
-- htslib: Ensure that htslib (https://github.com/samtools/htslib) is installed on your system, as bam2prof depends on it for BAM file processing.
+- A C++ compiler, `make` and `git`. The first `make` downloads and builds htslib, samtools and libgab into `lib/`, so no system-wide htslib is needed.
+- Development packages of GSL, libcurl, liblzma, libbz2 and zlib, e.g. on Debian/Ubuntu:
+
+  ```bash
+  sudo apt install build-essential git libgsl-dev libcurl4-openssl-dev liblzma-dev libbz2-dev zlib1g-dev
+  ```
+
+- Python 3 with numpy, pandas and matplotlib, for the plots (`pip install numpy pandas matplotlib`).
 
 ## Installation
 
