@@ -237,22 +237,24 @@ inline void increaseCounters(const bam1_t  * b, char *reconstructedReference, co
             if(!refFromFasta.empty()){
             refBaseFromFasta         = refFromFasta[j+1];
             refBaseFromFastaPrev     = refFromFasta[j  ];
-            refBaseFromFastaNext     = refFromFasta[j+2];		
+            refBaseFromFastaNext     = refFromFasta[j+2];
             if(refeBase != refBaseFromFasta){
-                cerr<<"Discrepency#1 for "<<bam_get_qname(b)<<" where the reference base at position "<<i<<" "<<refeBase<<" "<<refBaseFromFasta<<endl;
-                exit(1);
+                //e.g. an IUPAC ambiguity code in the reference fasta at this one position; exclude just
+                //this position from CpG classification below rather than aborting the whole run over it
+                cerr<<"Discrepency#1 for "<<bam_get_qname(b)<<" where the reference base at position "<<i<<" "<<refeBase<<" "<<refBaseFromFasta<<", excluding from CpG classification"<<endl;
+                refBaseFromFasta='N';
             }
 
             }
-            
+
         }else{
             if(!refFromFasta.empty()){
             refBaseFromFasta         = refFromFasta[j+1];
             refBaseFromFastaPrev     = refFromFasta[j  ];
-            refBaseFromFastaNext     = refFromFasta[j+2];		
+            refBaseFromFastaNext     = refFromFasta[j+2];
             if(refeBase != refBaseFromFasta){
-                cerr<<"Discrepency#2 for "<<bam_get_qname(b)<<" where the reference base at position "<<i<<" "<<refeBase<<" "<<refBaseFromFasta<<endl;
-                exit(1);
+                cerr<<"Discrepency#2 for "<<bam_get_qname(b)<<" where the reference base at position "<<i<<" "<<refeBase<<" "<<refBaseFromFasta<<", excluding from CpG classification"<<endl;
+                refBaseFromFasta='N';
             }
 
             }
@@ -363,44 +365,57 @@ double dbl2log(const double d,bool phred){
 
 void countSubsPerRef(bool genomeFileB, IndexedGenome* genome, const bam1_t  * b, std::pair<kstring_t*, std::vector<int>>& reconstructedReference, const int & minQualBase, string & refFromFasta, string & refFromFasta_, const bam_hdr_t *h, void *bed,bool mask, bool ispaired, bool isfirstpair, std::vector<std::vector<unsigned int>>& typesOfDimer5p, std::vector<std::vector<unsigned int>>& typesOfDimer3p, std::vector<std::vector<unsigned int>>& typesOfDimer5p_cpg, std::vector<std::vector<unsigned int>>& typesOfDimer3p_cpg, std::vector<std::vector<unsigned int>>& typesOfDimer5p_noncpg, std::vector<std::vector<unsigned int>>& typesOfDimer3p_noncpg, std::vector<std::vector<unsigned int>>& typesOfDimer5pDouble, std::vector<std::vector<unsigned int>>& typesOfDimer3pDouble, std::vector<std::vector<unsigned int>>& typesOfDimer5pSingle, std::vector<std::vector<unsigned int>>& typesOfDimer3pSingle){
 
-	reconstructRefWithPosHTS(b,reconstructedReference);
+	if(!reconstructRefWithPosHTS(b,reconstructedReference)){
+	    return; //e.g. read has no MD tag; skip it rather than aborting the whole run
+	}
+	refFromFasta.clear(); //cleared up front so a skip below can never leave stale data from a previous read
 	if(genomeFileB){
 		//string ch = refData[al.RefID].RefName;
 		string ch = h->target_name[b->core.tid];
-		
 
-		if(genome->name2index.find(ch) == genome->name2index.end()){
-		cerr<<"Cannot find chr "<<ch<<endl;
-		}else{
-		//cout<<"found"<<endl;
+		//falling through with an unknown chr would default-construct a zero faidx1_t (line_blen=0) and
+		//divide by zero inside returnStringCoord(); skip the fasta cross-check for this read instead
+		//(refFromFasta stays empty, which increaseCounters already treats as "no fasta data")
+		bool chrFound = genome->name2index.find(ch) != genome->name2index.end();
+		if(!chrFound){
+		static std::set<std::string> warnedChrs; //warn once per chr, not once per read
+		if(warnedChrs.insert(ch).second){
+			cerr<<"Cannot find chr "<<ch<<" in the reference fasta, skipping fasta cross-check for reads on it"<<endl;
 		}
-		faidx1_t & findx=genome->name2index[ch];
-	
-	
-		unsigned int lengthToExtract = reconstructedReference.first->l;
-		for(unsigned int i=0;i<reconstructedReference.first->l;i++){
-		if(reconstructedReference.first->s[i] == 'I')
-			lengthToExtract--;		
 		}
-		//int startPos = al.Position;
+
 		int startPos = b->core.pos;
-		if(startPos!=0)
-		startPos--;
-		else
-		return;
-	
+		bool startPosOk = (startPos!=0); //startPos==0 has no room for the one-base-before pad
+		if(startPosOk) startPos--;
+
+		if(chrFound && startPosOk){
+		faidx1_t & findx=genome->name2index[ch];
+
+		//reference bases actually consumed by the alignment (M/D/N/=/X); unlike reconstructedReference.first->l
+		//(which equals l_qseq and has no entry at all for deleted reference bases) this correctly accounts for
+		//deletions, so the fetch below covers the full span instead of falling short by the deletion length
+		unsigned int lengthToExtract = bam_endpos(b) - b->core.pos;
+
 		refFromFasta_ = genome->returnStringCoord(&findx,startPos,(lengthToExtract+2));
-		refFromFasta = "";
-		refFromFasta=refFromFasta_[0];
-		int j=1;
-		for(unsigned int i=0;i<reconstructedReference.first->l;i++){		
-			if(reconstructedReference.first->s[i] == 'I'){
-				refFromFasta+="I";
+		//refFromFasta_[0] is the pad base before the alignment, refFromFasta_[lengthToExtract+1] the pad base after;
+		//refFromFasta_[k] otherwise holds the base at genome position (startPos+k)
+		refFromFasta = string(reconstructedReference.first->l + 2, 'N');
+		refFromFasta[0] = refFromFasta_[0];
+		refFromFasta[reconstructedReference.first->l + 1] = refFromFasta_[refFromFasta_.size()-1];
+		for(unsigned int j=0;j<reconstructedReference.first->l;j++){
+			if(reconstructedReference.first->s[j] == 'I'){
+				refFromFasta[j+1] = 'I';
 			}else{
-				refFromFasta+=refFromFasta_[j++];
+				//reconstructedReference.second[j] is the true genome position of this entry (it already
+				//skips over deleted reference bases, unlike a plain running count), so look it up directly
+				//rather than assuming entries in reconstructedReference consume refFromFasta_ sequentially
+				int64_t offset = (int64_t)reconstructedReference.second[j] - (int64_t)startPos;
+				if(offset >= 0 && offset < (int64_t)refFromFasta_.size()){
+				refFromFasta[j+1] = refFromFasta_[offset];
+				}
 			}
 		}
-		refFromFasta+=refFromFasta_[ refFromFasta_.size() -1 ];
+		}
     }
 	
 	increaseCounters(b,reconstructedReference.first->s, reconstructedReference.second, minQualBase, refFromFasta, h, bed, mask, ispaired, isfirstpair, typesOfDimer5p, typesOfDimer3p, typesOfDimer5p_cpg, typesOfDimer3p_cpg, typesOfDimer5p_noncpg, typesOfDimer3p_noncpg, typesOfDimer5pDouble, typesOfDimer3pDouble, typesOfDimer5pSingle,typesOfDimer3pSingle); //start cycle numberOfCycles-1
@@ -578,6 +593,140 @@ vector<vector<unsigned int>> initializeDimerVectors(int maxLength, int innerSize
 
 //     file3pFP.close();
 // }
+
+//counts the reference nucleotide composition flanking a read's aligned span (mapDamage-style), needs -fa
+void countBaseCompositionFlank(IndexedGenome* genome, const bam1_t * b, const bam_hdr_t *h, int aroundFlank, bool ispaired, bool isfirstpair, std::vector<std::vector<unsigned int>>& baseComp5pFlank, std::vector<std::vector<unsigned int>>& baseComp3pFlank){
+
+    if(aroundFlank<=0) return;
+
+    string ch = h->target_name[b->core.tid];
+    if(genome->name2index.find(ch) == genome->name2index.end()){
+	static std::set<std::string> warnedChrs; //warn once per chr, not once per read
+	if(warnedChrs.insert(ch).second){
+	    cerr<<"Cannot find chr "<<ch<<" in the reference fasta, skipping base composition for reads on it"<<endl;
+	}
+	return;
+    }
+    faidx1_t & findx = genome->name2index[ch];
+
+    int64_t alnStart = b->core.pos;    //0-based, leftmost aligned ref coordinate
+    int64_t alnEnd    = bam_endpos(b); //0-based, one past the rightmost aligned ref coordinate
+
+    if( (alnStart-aroundFlank) < 0 || (alnEnd+aroundFlank) > findx.len ){
+	return; //too close to the edge of the contig to fetch the full flank, skip this read
+    }
+
+    //bases at genomic coordinates [alnStart-aroundFlank .. alnStart-1], left to right
+    string upstream   = genome->returnStringCoord(&findx, alnStart-aroundFlank, aroundFlank);
+    //bases at genomic coordinates [alnEnd .. alnEnd+aroundFlank-1], left to right
+    string downstream = genome->returnStringCoord(&findx, alnEnd,               aroundFlank);
+
+    bool reverse = bam_is_reverse(b);
+
+    for(int i=0;i<aroundFlank;i++){ //i=0 is the base closest to the read, i=aroundFlank-1 the farthest
+
+	char baseUp   = refToChar[ (unsigned char)toupper(upstream  [aroundFlank-1-i]) ]; //distance i+1 upstream   of alnStart
+	char baseDown = refToChar[ (unsigned char)toupper(downstream[i])               ]; //distance i+1 downstream of alnEnd
+
+	if( !reverse ){
+	    if( baseUp!=4   && (!ispaired ||  isfirstpair) ) baseComp5pFlank[i][ (int)baseUp   ]++;
+	    if( baseDown!=4 && (!ispaired || !isfirstpair) ) baseComp3pFlank[i][ (int)baseDown ]++;
+	}else{ //the read's 5' flank is downstream of alnEnd on the + strand, and vice-versa, both complemented
+	    if( baseDown!=4 && (!ispaired ||  isfirstpair) ) baseComp5pFlank[i][ (int)com[(int)baseDown] ]++;
+	    if( baseUp!=4   && (!ispaired || !isfirstpair) ) baseComp3pFlank[i][ (int)com[(int)baseUp]   ]++;
+	}
+    }
+}
+
+//writes a mapDamage-style A/C/G/T composition profile: reference base marginals from the substitution
+//matrices inside the fragment, plus the flanking reference bases outside it when a genome was provided
+void generateBaseCompositionProfile( const std::string& outDir,
+				      const std::string& bamfiletopen,
+				      const std::string& refId,
+				      int lengthMaxToPrint,
+				      int aroundFlank,
+				      bool genomeFileB,
+				      const std::vector<std::vector<unsigned int>>& typesOfDimer5p,
+				      const std::vector<std::vector<unsigned int>>& typesOfDimer3p,
+				      const std::vector<std::vector<unsigned int>>& baseComp5pFlank,
+				      const std::vector<std::vector<unsigned int>>& baseComp3pFlank,
+				      uint64_t mapped) {
+
+    std::string file5p, file3p;
+    std::string mappedStr = std::to_string(mapped);
+
+    std::string bamfiletopenBase = bamfiletopen.substr(bamfiletopen.find_last_of("/\\") + 1);
+    std::string::size_type const p(bamfiletopenBase.find_last_of('.'));
+    std::string file_base = bamfiletopenBase.substr(0, p);
+
+    if (outDir == "/dev/stdout") {
+	file5p = "/dev/stdout";
+	file3p = "/dev/stdout";
+    } else {
+	std::string command = "mkdir -p " + outDir;
+	int result = system(command.c_str());
+	if (result != 0) {
+	    std::cerr << "Failed to create output directory: " << outDir << std::endl;
+	}
+	file5p = outDir + "/" + file_base + "_" + refId + "_n" + mappedStr + "_5p_comp.prof";
+	file3p = outDir + "/" + file_base + "_" + refId + "_n" + mappedStr + "_3p_comp.prof";
+    }
+
+    std::ofstream file5pFP(file5p.c_str());
+    if (!file5pFP.is_open()) {
+	std::cerr << "Unable to write to 5p composition file " << file5p << std::endl;
+	return;
+    }
+    file5pFP << "pos\tA\tC\tG\tT" << std::endl;
+
+    if(genomeFileB){ //flank, farthest first, so the file reads in ascending position order
+	for(int i=aroundFlank-1;i>=0;i--){
+	    file5pFP << -(i+1);
+	    for(int n=0;n<4;n++) file5pFP << "\t" << baseComp5pFlank[i][n];
+	    file5pFP << std::endl;
+	}
+    }
+    for(int l=0;l<lengthMaxToPrint;l++){
+	unsigned int counts[4] = {0,0,0,0};
+	for(int n1=0;n1<4;n1++)
+	    for(int n2=0;n2<4;n2++)
+		counts[n1] += typesOfDimer5p[l][4*n1+n2];
+	file5pFP << l;
+	for(int n=0;n<4;n++) file5pFP << "\t" << counts[n];
+	file5pFP << std::endl;
+    }
+    file5pFP.close();
+
+    std::ofstream file3pFP;
+    if (outDir == "/dev/stdout") {
+	file3pFP.open(file3p.c_str(), std::ofstream::out | std::ofstream::app);
+    } else {
+	file3pFP.open(file3p.c_str());
+    }
+    if (!file3pFP.is_open()) {
+	std::cerr << "Unable to write to 3p composition file " << file3p << std::endl;
+	return;
+    }
+    file3pFP << "pos\tA\tC\tG\tT" << std::endl;
+
+    for(int l=lengthMaxToPrint-1;l>=0;l--){ //farthest from the 3' end (most negative) first
+	unsigned int counts[4] = {0,0,0,0};
+	for(int n1=0;n1<4;n1++)
+	    for(int n2=0;n2<4;n2++)
+		counts[n1] += typesOfDimer3p[l][4*n1+n2];
+	file3pFP << -(l+1);
+	for(int n=0;n<4;n++) file3pFP << "\t" << counts[n];
+	file3pFP << std::endl;
+    }
+    if(genomeFileB){
+	for(int i=0;i<aroundFlank;i++){
+	    file3pFP << (i+1);
+	    for(int n=0;n<4;n++) file3pFP << "\t" << baseComp3pFlank[i][n];
+	    file3pFP << std::endl;
+	}
+    }
+    file3pFP.close();
+}
 
 void generateDamageProfile( const std::string& outDir,
 			    const std::string& file5pparam,

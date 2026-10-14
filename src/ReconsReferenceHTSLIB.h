@@ -46,7 +46,9 @@ static char DUMMYCHAR='#';
 
 
 /* string reconstructRef(const BamAlignment  * al); */
-void reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int> > &);
+//returns false (and leaves smart unusable) for a read that cannot be reconstructed, e.g. a missing MD tag,
+//instead of aborting the whole program, so the caller can skip just that read
+bool reconstructRefWithPosHTS(const bam1_t   * b,pair< kstring_t *, vector<int> > &);
 
 /* int numberOfDeletions(const BamAlignment  * al); */
 
