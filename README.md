@@ -1,7 +1,10 @@
 
 # bam2prof
 
-bam2prof is a tool designed to analyze BAM files and generate substitution profiles, particularly useful for assessing ancient DNA damage patterns. This standalone version is derived from the subprogram in schmutzi (https://github.com/grenaud/schmutzi) but has been rewritten to utilize htslib (https://github.com/samtools/htslib).
+bam2prof is a quick tool that analyzes BAM files and generates substitution profiles, particularly useful for assessing ancient DNA damage patterns. It can also generate DNA patterns at breakpoints and insert size distributions.
+
+
+This standalone version is derived from the subprogram in schmutzi (https://github.com/grenaud/schmutzi) and has been used by ROHan (https://github.com/grenaud/ROHan). It has been rewritten to utilize htslib (https://github.com/samtools/htslib).
 
 ## Features
 
