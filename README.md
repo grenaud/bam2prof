@@ -1,6 +1,10 @@
 
 # bam2prof
 
+[![GitHub release](https://img.shields.io/github/v/release/grenaud/bam2prof)](https://github.com/grenaud/bam2prof/releases/latest)
+[![Ubuntu PPA](https://img.shields.io/badge/Ubuntu%20PPA-grenaud%2Fbam2prof-E95420.svg?logo=ubuntu&logoColor=white)](https://launchpad.net/~grenaud/+archive/ubuntu/bam2prof)
+[![DOI](https://img.shields.io/badge/DOI-10.1093%2Fbioinformatics%2Fbtaf407-blue.svg)](https://doi.org/10.1093/bioinformatics/btaf407)
+
 bam2prof is a quick tool that analyzes BAM files and generates substitution profiles, particularly useful for assessing ancient DNA damage patterns. It can also generate DNA patterns at breakpoints and insert size distributions.
 
 
@@ -198,22 +202,25 @@ For more detailed information and updates, visit the bam2prof GitHub repository 
 
 
 
-## Citing
+## How to cite
 
-bam2prof is released as part of AdDeam, please cite:
+If you use bam2prof (released as part of AdDeam) in your work, please cite:
 
-AdDeam: A Fast and Scalable Tool for Estimating and Clustering Reference-Level Damage Profiles Louis Kraft, Thorfinn Sand Korneliussen, Peter Wadd Sackett, Gabriel Renaud *bioRxiv* 2025.03.20.644297; doi: https://doi.org/10.1101/2025.03.20.644297
+> Kraft L, Korneliussen TS, Sackett PW, Renaud G. AdDeam: a fast and scalable tool for estimating and clustering reference-level damage profiles. *Bioinformatics* 2025;41(8):btaf407. [doi:10.1093/bioinformatics/btaf407](https://doi.org/10.1093/bioinformatics/btaf407)
 
-or in Bibtex:
+BibTeX:
 
-    @article {Kraft2025.03.20.644297,
-    	author = {{Kraft, Louis and Korneliussen, Thorfinn Sand and Sackett, Peter Wadd and Renaud, Gabriel}], 
- 	    title = {{AdDeam: A Fast and Scalable Tool for Estimating and Clustering Reference-Level Damage Profiles}},
-	    elocation-id = {2025.03.20.644297},
-	    year = {2025},
-	    doi = {10.1101/2025.03.20.644297},
-	    publisher = {Cold Spring Harbor Laboratory},	   
-	    URL = {https://www.biorxiv.org/content/early/2025/03/24/2025.03.20.644297},
-	    eprint = {https://www.biorxiv.org/content/early/2025/03/24/2025.03.20.644297.full.pdf},
-	    journal = {bioRxiv}
-    }
+```bibtex
+@article{Kraft2025AdDeam,
+  author    = {Kraft, Louis and Korneliussen, Thorfinn Sand and Sackett, Peter Wad and Renaud, Gabriel},
+  title     = {{{AdDeam}: a fast and scalable tool for estimating and clustering reference-level damage profiles}},
+  journal   = {Bioinformatics},
+  year      = {2025},
+  volume    = {41},
+  number    = {8},
+  pages     = {btaf407},
+  publisher = {Oxford University Press},
+  doi       = {10.1093/bioinformatics/btaf407},
+  url       = {https://doi.org/10.1093/bioinformatics/btaf407}
+}
+```
