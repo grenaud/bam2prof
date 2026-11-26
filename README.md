@@ -3,6 +3,7 @@
 
 [![GitHub release](https://img.shields.io/github/v/release/grenaud/bam2prof)](https://github.com/grenaud/bam2prof/releases/latest)
 [![Ubuntu PPA](https://img.shields.io/badge/Ubuntu%20PPA-grenaud%2Fbam2prof-E95420.svg?logo=ubuntu&logoColor=white)](https://launchpad.net/~grenaud/+archive/ubuntu/bam2prof)
+[![License](https://img.shields.io/github/license/grenaud/bam2prof)](LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.1093%2Fbioinformatics%2Fbtaf407-blue.svg)](https://doi.org/10.1093/bioinformatics/btaf407)
 
 bam2prof is a quick tool that analyzes BAM files and generates substitution profiles, particularly useful for assessing ancient DNA damage patterns. It can also generate DNA patterns at breakpoints and insert size distributions.
@@ -224,3 +225,7 @@ BibTeX:
   url       = {https://doi.org/10.1093/bioinformatics/btaf407}
 }
 ```
+
+## License
+
+Copyright Gabriel Renaud and the bam2prof contributors. bam2prof is free software, released under the GNU General Public License, version 3 or later (GPL-3.0-or-later). See [LICENSE](LICENSE).
